@@ -6,7 +6,7 @@ const INCOME_MAPPING = {
   "₹1L – ₹3L": 200000.0,
   "₹3L – ₹6L": 450000.0,
   "₹6L – ₹18L": 1200000.0,
-  "Above ₹18L": 2000000.0
+  "Above ₹18L": 200000.0
 };
 
 /**
@@ -76,7 +76,8 @@ export const profileService = {
   async getNotifications() {
     try {
       const response = await api.get("/notifications");
-      return response.data;
+      // Safely handle both envelope format { data: [...] } and raw array responses
+      return response.data?.data || (Array.isArray(response.data) ? response.data : []);
     } catch (e) {
       return [
         {

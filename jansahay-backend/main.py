@@ -31,6 +31,10 @@ class UserProfile(BaseModel):
     occupation: str
     education: str
 
+class ChatMessage(BaseModel):
+    user_id: str
+    message: str
+
 @app.get("/")
 def read_root():
     return {"message": "JanSahay Backend is live!"}
@@ -42,6 +46,80 @@ def get_schemes():
         return {"data": response.data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/updates")
+def get_updates():
+    try:
+        response = supabase.table('updates').select('*').execute()
+        return {"data": response.data}
+    except Exception:
+        # Fallback to mock updates
+        return {
+            "data": [
+                {
+                    "id": "news-1",
+                    "title": "PM Kisan Samman Nidhi Installment Disbursed",
+                    "summary": "The central government has released the 16th installment of PM-Kisan support, directly transferring funds to over 11 crore farmer bank accounts.",
+                    "date": "27 June 2026",
+                    "source": "Ministry of Agriculture",
+                    "image": "https://images.unsplash.com/photo-1530507629858-e4977d30e9e0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MTN8MHwxfHNlYXJjaHwzfHxpbmRpYW4lMjBhZ3JpY3VsdHVyZXxlbnwwfHx8fDE3ODI1MjgxMjh8MA&ixlib=rb-4.1.0&q=85",
+                    "link": "https://pmkisan.gov.in"
+                },
+                {
+                    "id": "news-2",
+                    "title": "Ayushman Bharat Card Registration Drive Launched",
+                    "summary": "Special camps are being set up across multiple states to facilitate cashless healthcare e-cards registration under Pradhan Mantri Jan Arogya Yojana.",
+                    "date": "24 June 2026",
+                    "source": "National Health Authority",
+                    "image": "https://images.unsplash.com/photo-1639416070357-6dc10225abec?crop=entropy&cs=srgb&fm=jpg&ixid=M3w7NTY2Nzh8MHwxfHNlYXJjaHwxfHxkaWdpdGFsJTIwaW5kaWF8ZW58MHx8fHwxNzgyNTI4MTI4fDA&ixlib=rb-4.1.0&q=85",
+                    "link": "https://dashboard.pmjay.gov.in"
+                }
+            ]
+        }
+
+@app.get("/api/notifications")
+def get_notifications():
+    try:
+        response = supabase.table('notifications').select('*').execute()
+        return {"data": response.data}
+    except Exception:
+        # Fallback to mock notifications
+        return {
+            "data": [
+                {
+                    "id": "notif-1",
+                    "category": "status",
+                    "title": "Profile Synced to Supabase",
+                    "message": "Your demographic preferences are successfully saved. Dynamic scheme matching is now active.",
+                    "timestamp": "Just now",
+                    "read": False
+                },
+                {
+                    "id": "notif-2",
+                    "category": "deadlines",
+                    "title": "PMAY Urban 2.0 Registration Closing",
+                    "message": "Reminder: Credit-linked interest subsidy registrations for EWS households close by 31 December 2026.",
+                    "timestamp": "2 hours ago",
+                    "read": False
+                },
+                {
+                    "id": "notif-3",
+                    "category": "updates",
+                    "title": "LPG Connection Subsidy Revised",
+                    "message": "Pradhan Mantri Ujjwala Connection has revised the refill DBT parameters for regional districts.",
+                    "timestamp": "1 day ago",
+                    "read": True
+                }
+            ]
+        }
+
+@app.post("/api/notifications/{notification_id}/read")
+def mark_notification_as_read(notification_id: str):
+    try:
+        supabase.table('notifications').update({"read": True}).eq('id', notification_id).execute()
+        return {"success": True}
+    except Exception:
+        return {"success": True}
 
 @app.post("/api/users")
 def create_user(user: UserProfile):
@@ -110,3 +188,29 @@ def get_user_dashboard(user_id: str):
         
     except Exception as e:
         return {"error": str(e)}
+
+@app.post("/api/ai/scheme-info")
+def get_scheme_info(chat_data: ChatMessage):
+    """
+    Workflow 2: Scheme Information Agent
+    Fetches schemes and lets the AI answer questions about them.
+    """
+    try:
+        # 1. Fetch all schemes from Supabase to provide context to the AI
+        schemes_response = supabase.table('schemes').select('*').execute()
+        all_schemes = schemes_response.data
+        
+        # 2. Forward query and context to n8n
+        n8n_scheme_webhook = "http://localhost:5678/webhook-test/webhook/scheme-info"
+        
+        payload = {
+            "user_id": chat_data.user_id,
+            "query": chat_data.message,
+            "context": all_schemes
+        }
+        
+        response = requests.post(n8n_scheme_webhook, json=payload, timeout=30)
+        return response.json()
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

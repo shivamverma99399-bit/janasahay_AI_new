@@ -47,7 +47,8 @@ export const schemeService = {
   async getGovernmentUpdates() {
     try {
       const response = await api.get("/updates");
-      return response.data;
+      // Safely handle both envelope format { data: [...] } and raw array responses
+      return response.data?.data || (Array.isArray(response.data) ? response.data : []);
     } catch (e) {
       return [
         {
