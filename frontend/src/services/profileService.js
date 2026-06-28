@@ -19,7 +19,7 @@ export const profileService = {
    */
   async getProfile(userId) {
     if (!userId) return null;
-    const response = await api.get(`/dashboard/${userId}`);
+    const response = await api.post("/match-schemes", { user_id: userId });
     const user = response.data?.user;
     if (!user) return null;
 
@@ -56,13 +56,13 @@ export const profileService = {
    */
   async saveProfile(profileData) {
     const payload = {
-      name: profileData.name,
+      name: profileData.name || "Guest Citizen",
       age: parseInt(profileData.age, 10) || 0,
-      gender: profileData.gender,
-      state: profileData.state,
+      gender: profileData.gender || "Universal",
+      state: profileData.state || "All",
       income: INCOME_MAPPING[profileData.income] || parseFloat(profileData.income) || 0.0,
-      occupation: profileData.occupation,
-      education: profileData.education
+      occupation: profileData.occupation || "All",
+      education: profileData.education || "All"
     };
 
     const response = await api.post("/users", payload);

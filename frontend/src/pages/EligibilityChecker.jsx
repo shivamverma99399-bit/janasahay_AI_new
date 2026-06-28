@@ -77,13 +77,14 @@ export default function EligibilityChecker() {
           toast.success("AI Profile matched successfully!");
           nav("/eligibility/results", { state: { userId: res.user_id, answers } });
         } else {
-          throw new Error("Missing user_id on registry callback");
+          throw new Error("Missing user_id on profile registration callback");
         }
       } catch (err) {
         console.error(err);
-        toast.error("Failed to run AI matching. Server database validation error.");
+        const errMsg = err?.response?.data?.detail || err?.message || "Server validation error.";
+        toast.error(`Profile Registration Failed: ${errMsg}`);
         // Redirect with error state
-        nav("/eligibility/results", { state: { error: true, answers } });
+        nav("/eligibility/results", { state: { error: errMsg, answers } });
       } finally {
         setIsSubmitting(false);
       }

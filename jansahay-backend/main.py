@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from supabase import create_client, Client
 from dotenv import load_dotenv
+from services.eligibility_engine import match_user_with_schemes
 
 load_dotenv()
 
@@ -31,9 +32,15 @@ class UserProfile(BaseModel):
     occupation: str
     education: str
 
-class ChatMessage(BaseModel):
-    user_id: str
+
+class GeneralChatRequest(BaseModel):
+    userId: str
+    sessionId: str
     message: str
+    language: str = "en"
+
+class MatchSchemesRequest(BaseModel):
+    user_id: str
 
 @app.get("/")
 def read_root():
@@ -129,88 +136,83 @@ def create_user(user: UserProfile):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/dashboard/{user_id}")
-def get_user_dashboard(user_id: str):
-    """Fetches user, asks AI to match schemes OR find new ones, returns results"""
+
+@app.post("/api/ai/chat")
+def general_chat(chat: GeneralChatRequest):
+    """
+    Workflow 1: General AI Chat
+    Sends user messages to the JanSahay General AI Chat workflow in n8n.
+    """
+
+    n8n_chat_webhook = "https://yuvraj99399.app.n8n.cloud/webhook/jansahay-general-ai-chat"
+
+    payload = {
+        "userId": chat.userId,
+        "sessionId": chat.sessionId,
+        "message": chat.message,
+        "language": chat.language
+    }
+
     try:
-        # 1. Fetch real user from Supabase
-        user_response = supabase.table('users').select('*').eq('id', user_id).execute()
+        response = requests.post(
+            n8n_chat_webhook,
+            json=payload,
+            timeout=60
+        )
+
+        response.raise_for_status()
+
+        return response.json()
+
+    except requests.exceptions.HTTPError:
+        raise HTTPException(
+            status_code=response.status_code,
+            detail="The AI workflow returned an error."
+        )
+
+    except requests.exceptions.Timeout:
+        raise HTTPException(
+            status_code=504,
+            detail="The AI workflow timed out."
+        )
+
+    except requests.exceptions.ConnectionError:
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to connect to the AI workflow."
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unexpected error: {str(e)}"
+        )
+
+@app.post("/api/match-schemes")
+def match_schemes(request: MatchSchemesRequest):
+    """
+    Deterministic matching endpoint. Fetches the user and schemes from Supabase,
+    calls the eligibility engine, and returns match metrics sorted by score.
+    """
+    try:
+        # 1. Fetch user by ID from Supabase
+        user_response = supabase.table('users').select('*').eq('id', request.user_id).execute()
         if not user_response.data:
-            return {"error": "User not found"}
+            raise HTTPException(status_code=404, detail="User not found")
         user_data = user_response.data[0]
 
-        # 2. Fetch existing database schemes
+        # 2. Fetch all schemes from Supabase
         schemes_response = supabase.table('schemes').select('*').execute()
         all_schemes = schemes_response.data
 
-        # 3. Send to ACTIVE n8n Production Webhook
-        n8n_webhook_url = "http://localhost:5678/webhook/match-schemes"
-        
-        payload = {
-            "user_profile": user_data,
-            "schemes": all_schemes
-        }
-        
-        # Call the AI! (Timeout increased to 90s because web searching takes time)
-        ai_response = requests.post(n8n_webhook_url, json=payload, timeout=90).json()
-
-        # 4. Merge Logic: Handle both DB Schemes and BRAND NEW Web Schemes
-        matched_schemes = []
-        db_schemes_dict = {str(s['id']): s for s in all_schemes} # Quick lookup
-
-        for ai_match in ai_response:
-            scheme_id = str(ai_match.get('scheme_id', ''))
-            
-            if scheme_id in db_schemes_dict:
-                # The AI matched a scheme we already have in our database
-                scheme_copy = db_schemes_dict[scheme_id].copy()
-                scheme_copy['match_score'] = ai_match.get('match_score', 0)
-                scheme_copy['ai_reason'] = ai_match.get('reason', '')
-                matched_schemes.append(scheme_copy)
-            else:
-                # The AI searched the web and found a BRAND NEW scheme!
-                matched_schemes.append({
-                    "id": scheme_id,
-                    "scheme_name": ai_match.get('scheme_name', 'Newly Discovered Scheme'),
-                    "description": "Discovered live by AI Web Search",
-                    "eligibility_criteria": "Matched based on dynamic web search",
-                    "match_score": ai_match.get('match_score', 0),
-                    "ai_reason": ai_match.get('reason', 'The AI Agent found this scheme online for you.')
-                })
-
-        # 5. Sort highest match score first
-        matched_schemes.sort(key=lambda x: x.get('match_score', 0), reverse=True)
+        # 3. Match user with schemes using local python logic
+        recommended_schemes = match_user_with_schemes(user_data, all_schemes)
 
         return {
             "user": user_data,
-            "recommended_schemes": matched_schemes
+            "recommended_schemes": recommended_schemes
         }
-        
-    except Exception as e:
-        return {"error": str(e)}
-
-@app.post("/api/ai/scheme-info")
-def get_scheme_info(chat_data: ChatMessage):
-    """
-    Workflow 2: Scheme Information Agent
-    Fetches schemes and lets the AI answer questions about them.
-    """
-    try:
-        # 1. Fetch all schemes from Supabase to provide context to the AI
-        schemes_response = supabase.table('schemes').select('*').execute()
-        all_schemes = schemes_response.data
-        
-        # 2. Forward query and context to n8n
-        n8n_scheme_webhook = "http://localhost:5678/webhook-test/webhook/scheme-info"
-        
-        payload = {
-            "user_id": chat_data.user_id,
-            "query": chat_data.message,
-            "context": all_schemes
-        }
-        
-        response = requests.post(n8n_scheme_webhook, json=payload, timeout=30)
-        return response.json()
-        
+    except HTTPException as he:
+        raise he
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

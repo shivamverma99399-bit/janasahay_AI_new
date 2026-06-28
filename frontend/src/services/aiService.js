@@ -6,24 +6,28 @@ import api from "./api";
 export const aiService = {
   /**
    * Sends user chat message to the backend.
-   * Workaround: Chatbot endpoint is disabled in this phase. Returns template feedback.
    */
   async sendChatMessage(message, history = []) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          reply: `Saathi chatbot endpoint is ready for integration. This conversation history is stored locally. Your question was: "${message}"`
-        });
-      }, 800);
+    const response = await api.post("/ai/chat", {
+      userId: "user_001",
+      sessionId: "session_001",
+      message,
+      language: "en"
     });
-  },
+
+    return {
+      reply: response.data.response,
+      schemes: response.data.schemes || [],
+      cta: response.data.cta || null
+    };
+  }, // <-- THIS COMMA WAS MISSING
 
   /**
    * Submits active user session ID to verify matches from n8n webhook matcher.
    * Calls: GET /api/dashboard/{user_id}
    */
   async checkEligibility(userId) {
-    const response = await api.get(`/dashboard/${userId}`);
+    const response = await api.post("/match-schemes", { user_id: userId });
     return response.data;
   }
 };

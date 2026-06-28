@@ -21,8 +21,8 @@ export default function EligibilityResults() {
     }
   }, [activeUserId, stateError, nav]);
 
-  // Fetch match recommendations from backend /api/dashboard/{user_id}
-  const { data, isLoading, isError } = useQuery({
+  // Fetch match recommendations from backend /api/match-schemes
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ["eligibilityMatches", activeUserId],
     queryFn: () => aiService.checkEligibility(activeUserId),
     enabled: !!activeUserId,
@@ -30,24 +30,25 @@ export default function EligibilityResults() {
 
   const recommendedSchemes = data?.recommended_schemes || [];
   
-  // Categorize flat n8n matches based on match score threshold
-  const matched = recommendedSchemes.filter(s => (s.match_score || 0) >= 75);
-  const partial = recommendedSchemes.filter(s => (s.match_score || 0) >= 40 && (s.match_score || 0) < 75);
-  const notEligible = recommendedSchemes.filter(s => (s.match_score || 0) < 40);
+  // Categorize matches based on eligibility status and match score threshold
+  const matched = recommendedSchemes.filter(s => s.eligible === true);
+  const partial = recommendedSchemes.filter(s => s.eligible === false && (s.match_score || 0) >= 40);
+  const notEligible = recommendedSchemes.filter(s => s.eligible === false && (s.match_score || 0) < 40);
 
-  // Estimate total benefits (summarize matching count or sum values if available)
+  // Estimate total benefits
   const estimated = matched.length > 0 ? `Qualified for ${matched.length} Schemes` : "0 Matches";
 
   if (isLoading) {
     return (
       <div className="py-32 flex flex-col items-center justify-center gap-4">
         <Loader2 className="w-10 h-10 text-brand-blue animate-spin" />
-        <p className="text-sm font-semibold text-brand-muted">Saathi AI is running matchmaker algorithms via n8n...</p>
+        <p className="text-sm font-semibold text-brand-muted">Running matchmaker evaluation algorithms...</p>
       </div>
     );
   }
 
   if (isError || stateError) {
+    const errorDetails = error?.response?.data?.detail || error?.message || (stateError && String(stateError)) || "Unknown integration error";
     return (
       <div className="py-20 max-w-xl mx-auto space-y-6 text-center animate-fade-in-up">
         <div className="w-16 h-16 rounded-full bg-rose-50 text-rose-600 grid place-items-center mx-auto">
@@ -56,8 +57,11 @@ export default function EligibilityResults() {
         <div className="space-y-2">
           <h1 className="font-display text-2xl font-bold text-slate-800">Connection Interrupted</h1>
           <p className="text-sm text-brand-muted leading-relaxed">
-            The AI eligibility matching service could not process your parameters. Please confirm that your FastAPI backend and associated n8n workflows are actively deployed.
+            The eligibility matching service encountered an error processing your request:
           </p>
+          <div className="p-4 rounded-xl bg-rose-50/50 border border-rose-100 text-left text-xs font-mono text-rose-700 max-h-40 overflow-y-auto">
+            {errorDetails}
+          </div>
         </div>
         <button
           onClick={() => nav("/eligibility")}
@@ -140,19 +144,38 @@ export default function EligibilityResults() {
         {partial.length > 0 ? (
           <div className="space-y-3">
             {partial.map((s, idx) => (
-              <div key={s.id || idx} className="card-soft p-5 border border-slate-100 flex items-start sm:items-center justify-between gap-4 bg-white shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-orange-50 text-brand-orange grid place-items-center flex-shrink-0">
+              <div key={s.id || idx} className="card-soft p-5 border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white shadow-sm">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-orange-50 text-brand-orange grid place-items-center flex-shrink-0 mt-0.5">
                     <AlertTriangle className="w-5 h-5" />
                   </div>
                   <div>
                     <h3 className="font-display font-bold text-brand-ink text-sm">{s.title || s.scheme_name}</h3>
-                    <p className="text-xs text-brand-muted mt-0.5">{s.ai_reason || "Check full eligibility requirements details."}</p>
+                    {/* Failed Checks */}
+                    {s.failed_checks && s.failed_checks.length > 0 && (
+                      <div className="mt-1 space-y-1">
+                        {s.failed_checks.map((fc, i) => (
+                          <p key={i} className="text-xs text-rose-600 font-medium flex items-center gap-1">
+                            ⚠ {fc}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                    {/* Met Conditions */}
+                    {s.reasons && s.reasons.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {s.reasons.map((r, i) => (
+                          <span key={i} className="inline-flex items-center gap-0.5 text-[10px] font-medium bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded">
+                            ✓ {r}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <button
                   onClick={() => nav(`/scheme/${s.id}`)}
-                  className="px-4 h-9 rounded-lg border text-xs font-semibold text-brand-orange border-brand-orange/20 hover:bg-orange-50 transition-colors"
+                  className="px-4 h-9 rounded-lg border text-xs font-semibold text-brand-orange border-brand-orange/20 hover:bg-orange-50 transition-colors self-start sm:self-center"
                 >
                   View Details
                 </button>
@@ -177,17 +200,26 @@ export default function EligibilityResults() {
         {notEligible.length > 0 ? (
           <div className="card-soft divide-y divide-slate-100 border border-slate-100 bg-white shadow-sm">
             {notEligible.map((s, idx) => (
-              <div key={s.id || idx} className="p-5 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-400 grid place-items-center flex-shrink-0">
+              <div key={s.id || idx} className="p-5 flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-400 grid place-items-center flex-shrink-0 mt-0.5">
                     <XCircle className="w-5 h-5" />
                   </div>
                   <div>
                     <h3 className="font-display font-bold text-brand-ink text-sm">{s.title || s.scheme_name}</h3>
-                    <p className="text-xs text-brand-muted mt-0.5">{s.ai_reason || "Demographic/income criteria mismatch."}</p>
+                    {/* Failed Checks */}
+                    {s.failed_checks && s.failed_checks.length > 0 && (
+                      <div className="mt-1 space-y-1">
+                        {s.failed_checks.map((fc, i) => (
+                          <p key={i} className="text-xs text-rose-600 font-medium">
+                            ✗ {fc}
+                          </p>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
-                <span className="text-xs text-slate-400 font-bold uppercase">{s.state || "All India"}</span>
+                <span className="text-xs text-slate-400 font-bold uppercase mt-1">{s.state || "All India"}</span>
               </div>
             ))}
           </div>

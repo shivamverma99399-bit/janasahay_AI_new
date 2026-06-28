@@ -76,6 +76,34 @@ export default function SchemeCard({ scheme, variant = "default" }) {
         {schemeSummary}
       </p>
 
+      {/* Render Reasons (Passed) if present */}
+      {scheme.reasons && scheme.reasons.length > 0 && (
+        <div className="mb-4 pt-3 border-t border-dashed border-slate-100">
+          <p className="text-[10px] uppercase font-bold text-emerald-700 tracking-wider mb-1">Matched Qualifications</p>
+          <div className="flex flex-wrap gap-1">
+            {scheme.reasons.map((r, i) => (
+              <span key={i} className="inline-flex items-center gap-0.5 text-[10px] font-medium bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded">
+                ✓ {r}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Render Failed Checks if present */}
+      {scheme.failed_checks && scheme.failed_checks.length > 0 && (
+        <div className="mb-4 pt-3 border-t border-dashed border-slate-100">
+          <p className="text-[10px] uppercase font-bold text-rose-700 tracking-wider mb-1">Unmet Conditions</p>
+          <div className="space-y-1">
+            {scheme.failed_checks.map((fc, i) => (
+              <p key={i} className="text-[11px] text-rose-600 font-semibold flex items-center gap-1">
+                ✗ {fc}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between pt-4 border-t border-slate-100">
         <div>
           <p className="text-[10px] uppercase tracking-widest text-slate-400 font-semibold">Benefit</p>
@@ -87,9 +115,9 @@ export default function SchemeCard({ scheme, variant = "default" }) {
               <Users className="w-3.5 h-3.5" />{scheme.beneficiaries}
             </div>
           )}
-          {(scheme.rating || scheme.match_score) && (
-            <div className="flex items-center gap-1 text-xs text-amber-600">
-              <Star className="w-3.5 h-3.5 fill-current" />{scheme.rating || `${scheme.match_score}/100`}
+          {(scheme.rating || scheme.match_score !== undefined) && (
+            <div className="flex items-center gap-1 text-xs text-amber-600 font-semibold">
+              <Star className="w-3.5 h-3.5 fill-current" />{scheme.rating || `${scheme.match_score}% Match`}
             </div>
           )}
           <div className={`w-8 h-8 rounded-full ${c.bg} ${c.text} grid place-items-center group-hover:translate-x-0.5 transition-transform`}>
