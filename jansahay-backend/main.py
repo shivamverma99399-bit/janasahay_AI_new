@@ -12,13 +12,30 @@ load_dotenv()
 
 app = FastAPI(title="JanSahay AI Backend")
 
+# Allowed CORS origins (Vercel production and local environments)
+allowed_origins = [
+    "https://janasahay-ai-new.vercel.app",
+    "http://localhost:3000",
+    "http://localhost:5173",
+]
+
+# Read optional origins from environment variables to allow flexible configuration
+for env_var in ["ALLOWED_ORIGINS", "FRONTEND_URL", "CORS_ALLOWED_ORIGINS", "CLIENT_URL"]:
+    env_val = os.environ.get(env_var)
+    if env_val:
+        for part in env_val.split(","):
+            part = part.strip()
+            if part and part not in allowed_origins:
+                allowed_origins.append(part)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 url: str = os.environ.get("SUPABASE_URL")
 key: str = os.environ.get("SUPABASE_KEY")
