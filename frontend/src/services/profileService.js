@@ -75,7 +75,7 @@ export const profileService = {
    */
   async getNotifications() {
     try {
-      const response = await api.get("/notifications");
+      const response = await api.get("/v1/notifications");
       // Safely handle both envelope format { data: [...] } and raw array responses
       return response.data?.data || (Array.isArray(response.data) ? response.data : []);
     } catch (e) {
@@ -113,7 +113,7 @@ export const profileService = {
    */
   async markNotificationAsRead(id) {
     try {
-      const response = await api.post(`/notifications/${id}/read`);
+      const response = await api.post(`/v1/notifications/${id}/read`);
       return response.data;
     } catch (e) {
       return { success: true };

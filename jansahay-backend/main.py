@@ -72,79 +72,8 @@ def get_schemes():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/updates")
-def get_updates():
-    try:
-        response = supabase.table('updates').select('*').execute()
-        return {"data": response.data}
-    except Exception:
-        # Fallback to mock updates
-        return {
-            "data": [
-                {
-                    "id": "news-1",
-                    "title": "PM Kisan Samman Nidhi Installment Disbursed",
-                    "summary": "The central government has released the 16th installment of PM-Kisan support, directly transferring funds to over 11 crore farmer bank accounts.",
-                    "date": "27 June 2026",
-                    "source": "Ministry of Agriculture",
-                    "image": "https://images.unsplash.com/photo-1530507629858-e4977d30e9e0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MTN8MHwxfHNlYXJjaHwzfHxpbmRpYW4lMjBhZ3JpY3VsdHVyZXxlbnwwfHx8fDE3ODI1MjgxMjh8MA&ixlib=rb-4.1.0&q=85",
-                    "link": "https://pmkisan.gov.in"
-                },
-                {
-                    "id": "news-2",
-                    "title": "Ayushman Bharat Card Registration Drive Launched",
-                    "summary": "Special camps are being set up across multiple states to facilitate cashless healthcare e-cards registration under Pradhan Mantri Jan Arogya Yojana.",
-                    "date": "24 June 2026",
-                    "source": "National Health Authority",
-                    "image": "https://images.unsplash.com/photo-1639416070357-6dc10225abec?crop=entropy&cs=srgb&fm=jpg&ixid=M3w7NTY2Nzh8MHwxfHNlYXJjaHwxfHxkaWdpdGFsJTIwaW5kaWF8ZW58MHx8fHwxNzgyNTI4MTI4fDA&ixlib=rb-4.1.0&q=85",
-                    "link": "https://dashboard.pmjay.gov.in"
-                }
-            ]
-        }
 
-@app.get("/api/notifications")
-def get_notifications():
-    try:
-        response = supabase.table('notifications').select('*').execute()
-        return {"data": response.data}
-    except Exception:
-        # Fallback to mock notifications
-        return {
-            "data": [
-                {
-                    "id": "notif-1",
-                    "category": "status",
-                    "title": "Profile Synced to Supabase",
-                    "message": "Your demographic preferences are successfully saved. Dynamic scheme matching is now active.",
-                    "timestamp": "Just now",
-                    "read": False
-                },
-                {
-                    "id": "notif-2",
-                    "category": "deadlines",
-                    "title": "PMAY Urban 2.0 Registration Closing",
-                    "message": "Reminder: Credit-linked interest subsidy registrations for EWS households close by 31 December 2026.",
-                    "timestamp": "2 hours ago",
-                    "read": False
-                },
-                {
-                    "id": "notif-3",
-                    "category": "updates",
-                    "title": "LPG Connection Subsidy Revised",
-                    "message": "Pradhan Mantri Ujjwala Connection has revised the refill DBT parameters for regional districts.",
-                    "timestamp": "1 day ago",
-                    "read": True
-                }
-            ]
-        }
 
-@app.post("/api/notifications/{notification_id}/read")
-def mark_notification_as_read(notification_id: str):
-    try:
-        supabase.table('notifications').update({"read": True}).eq('id', notification_id).execute()
-        return {"success": True}
-    except Exception:
-        return {"success": True}
 
 @app.post("/api/users")
 def create_user(user: UserProfile):
@@ -337,12 +266,17 @@ def get_v1_notifications():
 
 
 @app.post("/api/v1/notifications/{notification_id}/read")
-def read_v1_notification(notification_id: int):
+def read_v1_notification(notification_id: str):
     """
     Marks a single notification as read.
     """
+    try:
+        notif_id = int(notification_id)
+    except ValueError:
+        notif_id = notification_id
+
     for n in MOCK_NOTIFICATIONS:
-        if n["id"] == notification_id:
+        if str(n["id"]) == str(notif_id):
             n["is_read"] = True
             return {"success": True}
     raise HTTPException(status_code=404, detail="Notification not found")
@@ -359,13 +293,18 @@ def read_all_v1_notifications():
 
 
 @app.delete("/api/v1/notifications/{notification_id}")
-def delete_v1_notification(notification_id: int):
+def delete_v1_notification(notification_id: str):
     """
     Deletes a single notification.
     """
+    try:
+        notif_id = int(notification_id)
+    except ValueError:
+        notif_id = notification_id
+
     global MOCK_NOTIFICATIONS
     for i, n in enumerate(MOCK_NOTIFICATIONS):
-        if n["id"] == notification_id:
+        if str(n["id"]) == str(notif_id):
             MOCK_NOTIFICATIONS.pop(i)
             return {"success": True}
     raise HTTPException(status_code=404, detail="Notification not found")
