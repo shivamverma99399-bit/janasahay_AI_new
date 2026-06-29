@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { NavLink, useLocation, useNavigate, Outlet } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
   Home, Compass, Bot, User, Search, Globe, Sparkles, Newspaper, Bell
 } from "lucide-react";
@@ -9,6 +10,8 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuRadioGroup, DropdownMenuRadioItem
 } from "./ui/dropdown-menu";
+import { notificationService } from "@/services/notificationService";
+import NotificationDrawer from "./NotificationDrawer";
 
 const LANGUAGES = [
   { code: "en", label: "English", native: "EN" },
@@ -20,7 +23,7 @@ const sideNav = [
   { to: "/search", label: "Explore Schemes", icon: Compass },
   { to: "/eligibility", label: "Eligibility Checker", icon: Sparkles },
   { to: "/ai", label: "Saathi AI Chat", icon: Bot, badge: "AI" },
-  { to: "/updates", label: "Govt. Updates", icon: Newspaper },
+  { to: "/government-updates", label: "Govt. Updates", icon: Newspaper },
   { to: "/notifications", label: "Notifications", icon: Bell },
   { to: "/profile", label: "Profile / Preferences", icon: User },
 ];
@@ -38,6 +41,16 @@ export default function Layout() {
   const nav = useNavigate();
   const location = useLocation();
 
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+
+  const { data: notifications = [] } = useQuery({
+    queryKey: ["notificationsList"],
+    queryFn: () => notificationService.getNotifications(),
+    refetchInterval: 10000,
+  });
+
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
+
   // Placeholder generic citizen info
   const citizenName = "Indian Citizen";
 
@@ -53,10 +66,16 @@ export default function Layout() {
             <NavLink
               key={item.to}
               to={item.to}
+              onClick={(e) => {
+                if (item.to === "/notifications") {
+                  e.preventDefault();
+                  setIsNotifOpen(true);
+                }
+              }}
               data-testid={`nav-${item.to.replace("/", "") || "home"}`}
               className={({ isActive }) =>
                 `group flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  isActive
+                  isActive && item.to !== "/notifications"
                     ? "bg-brand-blueLight text-brand-blue"
                     : "text-slate-600 hover:bg-slate-50 hover:text-brand-ink"
                 }`
@@ -67,6 +86,11 @@ export default function Layout() {
               {item.badge && (
                 <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-gradient-to-r from-brand-blue to-purple-600 text-white">
                   {item.badge}
+                </span>
+              )}
+              {item.to === "/notifications" && unreadCount > 0 && (
+                <span className="ml-auto text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-600 text-white shadow-sm">
+                  {unreadCount}
                 </span>
               )}
             </NavLink>
@@ -124,12 +148,16 @@ export default function Layout() {
             </DropdownMenu>
 
             <button
-              onClick={() => nav("/notifications")}
+              onClick={() => setIsNotifOpen(true)}
               data-testid="header-notifications"
-              className="relative p-2 rounded-xl hover:bg-slate-100 transition-colors"
+              className="relative p-2 rounded-xl hover:bg-slate-100 transition-colors flex items-center gap-1.5"
             >
               <Bell className="w-5 h-5 text-brand-ink" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-brand-orange ring-2 ring-white animate-pulse" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-rose-600 text-[10px] font-extrabold text-white shadow-sm ring-2 ring-white animate-pulse">
+                  {unreadCount}
+                </span>
+              )}
             </button>
 
             <DropdownMenu>
@@ -199,6 +227,9 @@ export default function Layout() {
           })}
         </div>
       </nav>
+
+      {/* Global Notifications Drawer Overlay */}
+      <NotificationDrawer isOpen={isNotifOpen} onClose={() => setIsNotifOpen(false)} />
     </div>
   );
 }

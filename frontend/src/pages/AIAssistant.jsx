@@ -65,12 +65,12 @@ export default function AIAssistant() {
     setTyping(true);
 
     try {
-      // Send chat payload to FastAPI -> n8n workflow
+      // Send chat payload to FastAPI backend
       const response = await aiService.sendChatMessage(text, messages);
       
       const aiReply = {
         role: "ai",
-        text: response?.reply || response?.text || "I processed your request, but did not receive a valid text response. Please check your n8n workflow configurations.",
+        text: response?.reply || response?.text || "I processed your request, but did not receive a valid text response. Please check your FastAPI configurations.",
         schemes: response?.schemes || [],
         cta: response?.cta || null
       };
@@ -82,7 +82,7 @@ export default function AIAssistant() {
         ...prev,
         {
           role: "ai",
-          text: "I am having trouble connecting to Saathi servers. Please check if your FastAPI server is active and n8n webhook nodes are properly authenticated."
+          text: "I am having trouble connecting to Saathi servers. Please check if your FastAPI server is active and the API endpoints are properly authenticated."
         }
       ]);
     } finally {

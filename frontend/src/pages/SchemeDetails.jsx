@@ -88,7 +88,7 @@ export default function SchemeDetails() {
     } catch (error) {
       setChatMessages((prev) => [
         ...prev,
-        { role: "ai", text: "Sorry, I am unable to contact the Saathi AI server right now. Please verify backend n8n node connections." }
+        { role: "ai", text: "Sorry, I am unable to contact the Saathi AI server right now. Please verify backend API service connections." }
       ]);
     } finally {
       setIsAiTyping(false);
@@ -118,7 +118,7 @@ export default function SchemeDetails() {
     );
   }
 
-  // Schema fallback fields to support both static DB schemes and raw n8n AI matched schemes
+  // Schema fallback fields to support both static DB schemes and dynamically matched schemes
   const schemeTitle = scheme.title || scheme.scheme_name || "Newly Discovered Scheme";
   const schemeDept = scheme.department || "Government of India";
   const schemeBenefitFull = scheme.benefit_full || scheme.description || "";

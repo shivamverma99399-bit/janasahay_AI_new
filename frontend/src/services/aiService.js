@@ -1,7 +1,7 @@
 import api from "./api";
 
 /**
- * Service for interfacing with backend AI workflows (FastAPI -> n8n -> LLM).
+ * Service for interfacing with direct backend AI chat endpoints.
  */
 export const aiService = {
   /**
@@ -20,11 +20,10 @@ export const aiService = {
       schemes: response.data.schemes || [],
       cta: response.data.cta || null
     };
-  }, // <-- THIS COMMA WAS MISSING
+  },
 
   /**
-   * Submits active user session ID to verify matches from n8n webhook matcher.
-   * Calls: GET /api/dashboard/{user_id}
+   * Checks scheme eligibility for the user.
    */
   async checkEligibility(userId) {
     const response = await api.post("/match-schemes", { user_id: userId });

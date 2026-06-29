@@ -14,6 +14,7 @@ import EligibilityChecker from "@/pages/EligibilityChecker";
 import EligibilityResults from "@/pages/EligibilityResults";
 import Profile from "@/pages/Profile";
 import GovernmentUpdates from "@/pages/GovernmentUpdates";
+import GovernmentUpdateDetails from "@/pages/GovernmentUpdateDetails";
 import Notifications from "@/pages/Notifications";
 import NotFound from "@/pages/NotFound";
 
@@ -38,6 +39,8 @@ function AppRoutes() {
         <Route path="/ai" element={<AIAssistant />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/updates" element={<GovernmentUpdates />} />
+        <Route path="/government-updates" element={<GovernmentUpdates />} />
+        <Route path="/government-updates/:id" element={<GovernmentUpdateDetails />} />
         <Route path="/notifications" element={<Notifications />} />
       </Route>
       <Route path="*" element={<NotFound />} />
