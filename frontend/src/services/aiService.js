@@ -7,7 +7,7 @@ export const aiService = {
   /**
    * Sends user chat message to the backend.
    */
-  async sendChatMessage(message, history = [], userId = "user_001") {
+  async sendChatMessage(message, history = [], userId = "user_001", sessionId = "session_001") {
     let extraDemographics = null;
     let userDocuments = [];
 
@@ -37,7 +37,7 @@ export const aiService = {
 
     const response = await api.post("/ai/chat", {
       userId: userId,
-      sessionId: "session_001",
+      sessionId: sessionId,
       message,
       language: "en",
       extra_demographics: extraDemographics,
@@ -45,10 +45,21 @@ export const aiService = {
     });
 
     return {
-      reply: response.data.response,
-      schemes: response.data.schemes || [],
-      cta: response.data.cta || null
+      answer: response.data.answer,
+      matchedSchemes: response.data.matchedSchemes || [],
+      eligibility: response.data.eligibility || [],
+      recommendedActions: response.data.recommendedActions || [],
+      confidence: response.data.confidence || 1.0,
+      sources: response.data.sources || []
     };
+  },
+
+  /**
+   * Clears in-memory session history for the given sessionId.
+   */
+  async clearChat(sessionId) {
+    const response = await api.post("/ai/chat/clear", { sessionId });
+    return response.data;
   },
 
   /**

@@ -6,9 +6,9 @@ from pydantic import BaseModel
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from services.eligibility_engine import match_user_with_schemes
-from services.ai_service import execute_ai_chat
+from chat.router import router as chat_router
 
-load_dotenv()
+load_dotenv(override=True)
 
 app = FastAPI(title="JanSahay AI Backend")
 
@@ -53,14 +53,6 @@ class UserProfile(BaseModel):
     education: str
 
 
-class GeneralChatRequest(BaseModel):
-    userId: str
-    sessionId: str
-    message: str
-    language: str = "en"
-    extra_demographics: Optional[Dict[str, Any]] = None
-    user_documents: Optional[List[str]] = None
-
 class MatchSchemesRequest(BaseModel):
     user_id: str
     extra_demographics: Optional[Dict[str, Any]] = None
@@ -99,30 +91,7 @@ def create_user(user: UserProfile):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-@app.post("/api/ai/chat")
-def general_chat(chat: GeneralChatRequest):
-    """
-    Direct LLM chat integration endpoint.
-    """
-    try:
-        # If the frontend passes "user_001", treat it as anonymous guest
-        user_id = chat.userId if chat.userId != "user_001" and chat.userId else None
-        
-        result = execute_ai_chat(
-            user_id=user_id,
-            message=chat.message,
-            session_id=chat.sessionId,
-            language=chat.language,
-            extra_demographics=chat.extra_demographics,
-            user_documents=chat.user_documents
-        )
-        return result
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Saathi AI service error: {str(e)}"
-        )
+app.include_router(chat_router, prefix="/api/ai")
 
 @app.post("/api/match-schemes")
 def match_schemes(request: MatchSchemesRequest):
