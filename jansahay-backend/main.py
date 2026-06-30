@@ -69,6 +69,7 @@ class MatchSchemesRequest(BaseModel):
 def read_root():
     return {"message": "JanSahay Backend is live!"}
 
+@app.get("/schemes")
 @app.get("/api/schemes")
 def get_schemes():
     try:
@@ -340,3 +341,50 @@ def clear_all_v1_notifications():
     global MOCK_NOTIFICATIONS
     MOCK_NOTIFICATIONS.clear()
     return {"success": True}
+
+
+@app.get("/health")
+@app.get("/api/health")
+def health_check():
+    try:
+        # Check supabase connection
+        response = supabase.table('schemes').select('id').limit(1).execute()
+        return {"status": "healthy", "database": "connected"}
+    except Exception as e:
+        return {"status": "unhealthy", "database": str(e)}
+
+
+@app.get("/schemes/search")
+@app.get("/api/schemes/search")
+def search_schemes(q: Optional[str] = None):
+    try:
+        response = supabase.table('schemes').select('*').execute()
+        all_schemes = response.data or []
+        if not q:
+            return {"data": all_schemes}
+        
+        query = q.lower()
+        matched = []
+        for s in all_schemes:
+            title = s.get("title") or s.get("scheme_name") or ""
+            summary = s.get("summary") or s.get("description") or ""
+            category = s.get("category") or ""
+            criteria = s.get("eligibility_criteria") or ""
+            dept = s.get("department") or "Government of India"
+            search_target = f"{title} {summary} {category} {criteria} {dept}".lower()
+            if query in search_target:
+                matched.append(s)
+        return {"data": matched}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/schemes/categories")
+@app.get("/api/schemes/categories")
+def get_categories():
+    try:
+        response = supabase.table('schemes').select('category').execute()
+        categories = list(set([item['category'] for item in response.data if item.get('category')]))
+        return {"data": [{"id": c.lower(), "label": c} for c in categories]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
