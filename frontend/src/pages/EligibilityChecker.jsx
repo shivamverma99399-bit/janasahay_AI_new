@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { aiService } from "@/services/aiService";
 import { profileService } from "@/services/profileService";
 import { useApp } from "@/context/AppContext";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 const STEPS = [
@@ -53,11 +54,64 @@ const STEPS = [
 
 export default function EligibilityChecker() {
   const nav = useNavigate();
-  const { setUserId } = useApp();
+  const { userId, setUserId } = useApp();
+
+  const { data: profile, isLoading: isProfileLoading } = useQuery({
+    queryKey: ["profilePreferences", userId],
+    queryFn: () => profileService.getProfile(userId),
+  });
+
   const [stepIndex, setStepIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const step = STEPS[stepIndex];
+
+  // Sync profile to answers
+  React.useEffect(() => {
+    if (profile) {
+      setAnswers(prev => ({
+        ...profile,
+        disability: profile.disabilityStatus || prev.disability,
+        ...prev
+      }));
+    }
+  }, [profile]);
+
+  // Compute active steps (only steps with missing fields)
+  const activeSteps = React.useMemo(() => {
+    if (!profile) return STEPS;
+
+    return STEPS.map(step => {
+      const missingFields = step.fields.filter(field => {
+        const profileKey = field.id === "disability" ? "disabilityStatus" : field.id;
+        const val = profile[profileKey];
+        return val === undefined || val === null || String(val).trim() === "";
+      });
+      return {
+        ...step,
+        fields: missingFields
+      };
+    }).filter(step => step.fields.length > 0);
+  }, [profile]);
+
+  // Redirect if profile is fully complete
+  React.useEffect(() => {
+    if (profile && activeSteps.length === 0 && !isProfileLoading) {
+      const activeId = userId || localStorage.getItem("js_guest_user_id");
+      nav("/eligibility/results", { replace: true, state: { userId: activeId, answers: profile } });
+    }
+  }, [profile, activeSteps, isProfileLoading, nav, userId]);
+
+  if (isProfileLoading) {
+    return (
+      <div className="py-32 flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-10 h-10 text-brand-blue animate-spin" />
+        <p className="text-sm font-semibold text-brand-muted">Verifying saved preferences...</p>
+      </div>
+    );
+  }
+
+  const stepsToUse = activeSteps.length > 0 ? activeSteps : STEPS;
+  const step = stepsToUse[stepIndex] || stepsToUse[0];
 
   const setAnswer = (id, v) => setAnswers((a) => ({ ...a, [id]: v }));
   
@@ -65,17 +119,25 @@ export default function EligibilityChecker() {
   const stepComplete = step.fields.every(f => answers[f.id] && String(answers[f.id]).trim() !== "");
 
   const goNext = async () => {
-    if (stepIndex < STEPS.length - 1) {
+    if (stepIndex < stepsToUse.length - 1) {
       setStepIndex(stepIndex + 1);
     } else {
       setIsSubmitting(true);
       try {
+        const mergedProfile = {
+          ...profile,
+          ...answers,
+          disabilityStatus: answers.disability !== undefined ? answers.disability : (profile?.disabilityStatus || "No")
+        };
         // Submit user details as a profile to get a valid user_id
-        const res = await profileService.saveProfile(answers);
-        if (res && res.user_id) {
-          setUserId(res.user_id);
+        const res = await profileService.saveProfile(mergedProfile, userId);
+        const activeId = res?.user_id || userId || localStorage.getItem("js_guest_user_id");
+        if (activeId) {
+          if (userId) {
+            setUserId(activeId);
+          }
           toast.success("AI Profile matched successfully!");
-          nav("/eligibility/results", { state: { userId: res.user_id, answers } });
+          nav("/eligibility/results", { state: { userId: activeId, answers: mergedProfile } });
         } else {
           throw new Error("Missing user_id on profile registration callback");
         }
@@ -105,11 +167,11 @@ export default function EligibilityChecker() {
       {/* Progress */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-2 text-sm">
-          <span className="font-semibold text-brand-ink">Step {stepIndex + 1} of {STEPS.length}</span>
-          <span className="text-brand-muted">{Math.round(((stepIndex + 1) / STEPS.length) * 100)}% complete</span>
+          <span className="font-semibold text-brand-ink">Step {stepIndex + 1} of {stepsToUse.length}</span>
+          <span className="text-brand-muted">{Math.round(((stepIndex + 1) / stepsToUse.length) * 100)}% complete</span>
         </div>
         <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
-          <div className="h-full bg-gradient-to-r from-brand-blue to-brand-green transition-all duration-300" style={{ width: `${((stepIndex + 1) / STEPS.length) * 100}%` }} />
+          <div className="h-full bg-gradient-to-r from-brand-blue to-brand-green transition-all duration-300" style={{ width: `${((stepIndex + 1) / stepsToUse.length) * 100}%` }} />
         </div>
       </div>
 
@@ -138,7 +200,7 @@ export default function EligibilityChecker() {
             <>
               <Loader2 className="w-4 h-4 animate-spin" /> Matching...
             </>
-          ) : stepIndex === STEPS.length - 1 ? (
+          ) : stepIndex === stepsToUse.length - 1 ? (
             <>
               Perform Diagnostic <ArrowRight className="w-4 h-4" />
             </>

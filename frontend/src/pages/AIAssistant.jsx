@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Send, Mic, Sparkles, Bot, ArrowUpRight, ShieldCheck, Loader2 } from "lucide-react";
 import { aiService } from "@/services/aiService";
 import { toast } from "sonner";
+import { useApp } from "@/context/AppContext";
 
 const INITIAL_GREETING = "Namaste! 🙏 I'm Saathi, your JanSahay AI assistant. I can help you search government schemes, check eligibility criteria, and find application links. What are you looking for today?";
 
@@ -35,6 +36,10 @@ function formatMessageText(text) {
 export default function AIAssistant() {
   const nav = useNavigate();
   const [searchParams] = useSearchParams();
+  const { userId } = useApp();
+  const guestUserId = localStorage.getItem("js_guest_user_id");
+  const activeUserId = userId || guestUserId || "user_001";
+
   const [messages, setMessages] = useState([
     { role: "ai", text: INITIAL_GREETING }
   ]);
@@ -66,7 +71,7 @@ export default function AIAssistant() {
 
     try {
       // Send chat payload to FastAPI backend
-      const response = await aiService.sendChatMessage(text, messages);
+      const response = await aiService.sendChatMessage(text, messages, activeUserId);
       
       const aiReply = {
         role: "ai",

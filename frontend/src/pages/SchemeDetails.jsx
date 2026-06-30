@@ -316,46 +316,60 @@ export default function SchemeDetails() {
                   </span>
                 </div>
                 
-                {/* Available vs Missing Diagnostics */}
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <p className="text-xs uppercase tracking-wider font-bold text-brand-muted">Required Checklist</p>
-                    <div className="space-y-2">
-                      {reqDocs.map((doc, i) => {
-                        const hasDoc = userDocs.includes(doc);
-                        return (
-                          <div key={i} className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${hasDoc ? 'bg-emerald-50/50 border-emerald-100' : 'bg-slate-50 border-slate-100'}`}>
-                            <span className="text-sm">{hasDoc ? "✅" : "❌"}</span>
-                            <span className="text-xs font-semibold text-brand-ink flex-1">{doc}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/60 flex flex-col justify-between space-y-4">
-                    <div>
-                      <p className="text-xs uppercase tracking-wider font-bold text-brand-muted mb-2">Completion Status</p>
-                      <p className="font-display text-2xl font-extrabold text-brand-ink">{completionPercent}% Complete</p>
-                      <p className="text-xs text-slate-600 mt-2">
-                        You already have <span className="font-bold">{hasCount}</span> of <span className="font-bold">{reqDocs.length}</span> required documents.
-                      </p>
-                    </div>
-
-                    {missingDocs.length > 0 && (
-                      <div className="pt-3 border-t">
-                        <p className="text-[10px] uppercase font-bold text-rose-700 tracking-wider mb-1.5">Missing Documents:</p>
-                        <ul className="space-y-1.5 pl-1">
-                          {missingDocs.map((doc, i) => (
-                            <li key={i} className="text-xs text-rose-600 font-semibold flex items-center gap-1.5">
-                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> {doc}
-                            </li>
-                          ))}
-                        </ul>
+                {userDocs && userDocs.length > 0 ? (
+                  /* Available vs Missing Diagnostics */
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <p className="text-xs uppercase tracking-wider font-bold text-brand-muted">Required Checklist</p>
+                      <div className="space-y-2">
+                        {reqDocs.map((doc, i) => {
+                          const hasDoc = userDocs.includes(doc);
+                          return (
+                            <div key={i} className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${hasDoc ? 'bg-emerald-50/50 border-emerald-100' : 'bg-slate-50 border-slate-100'}`}>
+                              <span className="text-sm">{hasDoc ? "✅" : "❌"}</span>
+                              <span className="text-xs font-semibold text-brand-ink flex-1">{doc}</span>
+                            </div>
+                          );
+                        })}
                       </div>
-                    )}
+                    </div>
+
+                    <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/60 flex flex-col justify-between space-y-4">
+                      <div>
+                        <p className="text-xs uppercase tracking-wider font-bold text-brand-muted mb-2">Completion Status</p>
+                        <p className="font-display text-2xl font-extrabold text-brand-ink">{completionPercent}% Complete</p>
+                        <p className="text-xs text-slate-600 mt-2">
+                          You already have <span className="font-bold">{hasCount}</span> of <span className="font-bold">{reqDocs.length}</span> required documents.
+                        </p>
+                      </div>
+
+                      {missingDocs.length > 0 && (
+                        <div className="pt-3 border-t">
+                          <p className="text-[10px] uppercase font-bold text-rose-700 tracking-wider mb-1.5">Missing Documents:</p>
+                          <ul className="space-y-1.5 pl-1">
+                            {missingDocs.map((doc, i) => (
+                              <li key={i} className="text-xs text-rose-600 font-semibold flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> {doc}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="p-8 text-center border-2 border-dashed rounded-2xl bg-slate-50 border-slate-200 flex flex-col items-center justify-center space-y-3" data-testid="no-docs-checklist">
+                    <p className="text-sm text-brand-muted max-w-sm">
+                      You haven't configured your document checklist yet. Complete the "My Documents" section in your Profile to check which required documents you possess.
+                    </p>
+                    <button
+                      onClick={() => nav("/profile")}
+                      className="px-4 h-9 rounded-lg bg-brand-blue hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-colors"
+                    >
+                      Go to Profile & Documents
+                    </button>
+                  </div>
+                )}
               </div>
             </TabsContent>
 

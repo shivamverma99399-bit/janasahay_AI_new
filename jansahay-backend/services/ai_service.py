@@ -293,21 +293,56 @@ def execute_ai_chat(
     message: str,
     session_id: str,
     language: str = "en",
-    apply_scheme_id: Optional[str] = None
+    apply_scheme_id: Optional[str] = None,
+    extra_demographics: Optional[Dict[str, Any]] = None,
+    user_documents: Optional[List[str]] = None
 ) -> Dict[str, Any]:
     """
     Main orchestration entry point. Matches profile, determines intent, 
     fetches minimal context, queries LLM, and formats response.
     """
-    # 1. Load User Profile if user_id is provided
+    # 1. Load User Profile
     user_profile = None
     if user_id and supabase_client:
         try:
             resp = supabase_client.table('users').select('*').eq('id', user_id).execute()
             if resp.data:
                 user_profile = resp.data[0]
+                if extra_demographics:
+                    user_profile["extra_demographics"] = extra_demographics
         except Exception:
             pass
+    elif extra_demographics:
+        # Guest user with a saved local profile
+        income_map = {
+            "Below ₹1 Lakh": 80000.0,
+            "₹1L – ₹3L": 200000.0,
+            "₹3L – ₹6L": 450000.0,
+            "₹6L – ₹18L": 1200000.0,
+            "Above ₹18L": 2000000.0
+        }
+        raw_income = extra_demographics.get("income")
+        income_float = 0.0
+        if isinstance(raw_income, (int, float)):
+            income_float = float(raw_income)
+        elif isinstance(raw_income, str):
+            income_float = income_map.get(raw_income, 0.0)
+            if not income_float:
+                try:
+                    income_float = float(raw_income.replace("₹", "").replace("L", "00000").replace(" ", ""))
+                except:
+                    pass
+        
+        user_profile = {
+            "name": extra_demographics.get("name", "Guest Citizen"),
+            "age": int(extra_demographics.get("age") or 0) if extra_demographics.get("age") else 0,
+            "gender": extra_demographics.get("gender", "Female"),
+            "state": extra_demographics.get("state", ""),
+            "income": income_float,
+            "occupation": extra_demographics.get("occupation", ""),
+            "education": extra_demographics.get("education", ""),
+            "extra_demographics": extra_demographics
+        }
             
     # 2. Determine User Intent
     intent = detect_intent(message)
@@ -328,7 +363,7 @@ def execute_ai_chat(
 
     if intent == "eligibility":
         if not user_profile:
-            context_data = "User is not logged in. Tell the user they need to set up their Profile first to evaluate scheme eligibility matching."
+            context_data = "User has no profile saved. Tell the user they need to set up their Profile first to evaluate scheme eligibility matching."
             cta = {"to": "/profile", "label": "Set Up Profile"}
         else:
             # Run eligibility engine
@@ -339,11 +374,12 @@ def execute_ai_chat(
             eligible_names = [s["scheme_name"] for s in matched_results if s.get("eligible")]
             partial_names = [s["scheme_name"] for s in matched_results if not s.get("eligible") and s.get("match_score", 0) >= 40]
             
+            extra = user_profile.get("extra_demographics") or {}
             context_data = (
                 f"User Profile details: Age={user_profile.get('age')}, Income={user_profile.get('income')}, Gender={user_profile.get('gender')}, "
-                f"State={user_profile.get('state')}, District={user_profile.get('district')}, Occupation={user_profile.get('occupation')}, "
-                f"Education={user_profile.get('education')}, Category={user_profile.get('category')}, "
-                f"Disability={'Yes' if user_profile.get('disability_status') else 'No'}.\n"
+                f"State={user_profile.get('state')}, District={extra.get('district', 'N/A')}, Occupation={user_profile.get('occupation')}, "
+                f"Education={user_profile.get('education')}, Category={extra.get('category', 'General')}, "
+                f"Disability={'Yes' if str(extra.get('disabilityStatus', 'No')).lower() == 'yes' else 'No'}.\n"
                 f"Eligibility Evaluation Results:\n"
                 f"- Fully Eligible Schemes: {', '.join(eligible_names) if eligible_names else 'None'}\n"
                 f"- Partially Eligible Schemes: {', '.join(partial_names) if partial_names else 'None'}\n"
@@ -373,8 +409,30 @@ def execute_ai_chat(
     elif intent == "guidance":
         # Guidance on how to apply / documents required
         relevant = search_schemes(message, all_schemes)
-        matched_schemes_context = relevant
-        if relevant:
+        if user_profile and relevant:
+            matched_relevant = match_user_with_schemes(user_profile, relevant)
+            matched_schemes_context = matched_relevant
+            context_data = "Application Steps, Required Documents & User Eligibility Context:\n"
+            for s in matched_relevant:
+                eligible_str = "Eligible" if s.get("eligible") else "Not Eligible"
+                req_docs = get_required_documents(s.get('scheme_name', ''), s.get('category', ''))
+                user_docs = user_documents or []
+                doc_comparison = ""
+                for doc in req_docs:
+                    if doc in user_docs:
+                        doc_comparison += f"✅ {doc}\n"
+                    else:
+                        doc_comparison += f"❌ {doc}\n"
+                context_data += (
+                    f"Scheme: {s.get('scheme_name')}\n"
+                    f"- Description: {s.get('description')}\n"
+                    f"- Eligibility Criteria: {s.get('eligibility_criteria')}\n"
+                    f"- Official Website: {s.get('official_link')}\n"
+                    f"- User Eligibility Status: {eligible_str} (Match Score: {s.get('match_score')}/100)\n"
+                    f"- Required vs Owned Documents Checklist:\n{doc_comparison}\n\n"
+                )
+        elif relevant:
+            matched_schemes_context = relevant
             context_data = "Application Steps and Required Documents Context:\n"
             for s in relevant:
                 context_data += (
@@ -388,8 +446,35 @@ def execute_ai_chat(
             
     else:  # intent == "scheme_question"
         relevant = search_schemes(message, all_schemes)
-        matched_schemes_context = relevant
-        if relevant:
+        if user_profile and relevant:
+            matched_relevant = match_user_with_schemes(user_profile, relevant)
+            matched_schemes_context = matched_relevant
+            context_data = "Relevant Scheme Details & User Eligibility Context:\n"
+            for s in matched_relevant:
+                eligible_str = "Eligible" if s.get("eligible") else "Not Eligible"
+                failed_checks_str = ", ".join(s.get("failed_checks", []))
+                reasons_str = ", ".join(s.get("reasons", []))
+                req_docs = get_required_documents(s.get('scheme_name', ''), s.get('category', ''))
+                user_docs = user_documents or []
+                doc_comparison = ""
+                for doc in req_docs:
+                    if doc in user_docs:
+                        doc_comparison += f"✅ {doc}\n"
+                    else:
+                        doc_comparison += f"❌ {doc}\n"
+                context_data += (
+                    f"Scheme Name: {s.get('scheme_name')}\n"
+                    f"- Benefit/Description: {s.get('description')}\n"
+                    f"- Category: {s.get('category')}\n"
+                    f"- State: {s.get('state')}\n"
+                    f"- Eligibility Text: {s.get('eligibility_criteria')}\n"
+                    f"- User Eligibility Status: {eligible_str} (Match Score: {s.get('match_score')}/100)\n"
+                    f"- Eligibility Reasons: {reasons_str}\n"
+                    f"- Failed Eligibility Checks: {failed_checks_str if failed_checks_str else 'None'}\n"
+                    f"- Required vs Owned Documents Checklist:\n{doc_comparison}\n\n"
+                )
+        elif relevant:
+            matched_schemes_context = relevant
             context_data = "Relevant Scheme Details Context:\n"
             for s in relevant:
                 context_data += (
@@ -405,10 +490,11 @@ def execute_ai_chat(
     # 4. Construct Prompt Context
     user_prompt = f"User Intent detected: {intent.upper()}\n"
     if user_profile:
+         extra = user_profile.get("extra_demographics") or {}
          user_prompt += (
-             f"Active User Demographics: Age {user_profile.get('age')}, State {user_profile.get('state')}, "
-             f"District {user_profile.get('district')}, Occupation {user_profile.get('occupation')}, "
-             f"Category {user_profile.get('category')}.\n"
+             f"Active User Demographics: Name {user_profile.get('name')}, Age {user_profile.get('age')}, State {user_profile.get('state')}, "
+             f"District {extra.get('district')}, Occupation {user_profile.get('occupation')}, "
+             f"Category {extra.get('category')}.\n"
          )
     user_prompt += f"Retrieved Database Context:\n{context_data}\n\n"
     user_prompt += f"User Message: {message}\n"
@@ -452,7 +538,55 @@ def execute_ai_chat(
                 f"CRITICAL: Never claim that you can submit applications or modify official records."
             )
 
-    system_prompt = SYSTEM_PROMPT + lang_instruction + apply_context
+    personalization_prompt = ""
+    if user_profile:
+        is_guest = (user_id is None)
+        extra = user_profile.get("extra_demographics") or {}
+        
+        profile_details = [
+            f"Name: {user_profile.get('name')}",
+            f"Age: {user_profile.get('age')}",
+            f"Gender: {user_profile.get('gender')}",
+            f"State: {user_profile.get('state')}",
+            f"Income: ₹{user_profile.get('income'):,.0f} annually",
+            f"Occupation: {user_profile.get('occupation')}",
+            f"Education: {user_profile.get('education')}",
+            f"District: {extra.get('district', 'N/A')}",
+            f"Category: {extra.get('category', 'General')}",
+            f"Disability Status: {'Yes' if str(extra.get('disabilityStatus', 'No')).lower() == 'yes' else 'No'}",
+            f"Farmer status: {'Yes' if str(user_profile.get('occupation', '')).lower() == 'farmer' else 'No'}",
+            f"Student status: {'Yes' if str(user_profile.get('occupation', '')).lower() == 'student' else 'No'}",
+            f"Landowner status: {extra.get('land', 'No')}",
+            f"Girl child status: {extra.get('girl_child', 'No')}",
+            f"Household type: {extra.get('household', 'N/A')}"
+        ]
+        profile_context_str = "\n".join([f"- {d}" for d in profile_details])
+        
+        mode_str = "GUEST USER (with saved local profile)" if is_guest else "SIGNED-IN USER"
+        personalization_prompt = f"""
+[USER MODE: {mode_str}]
+The user has a saved profile. You MUST provide a personalized experience using their saved profile.
+Here is the user's saved profile data:
+{profile_context_str}
+
+Guidelines:
+1. Do NOT ask for demographic or personal information that is already provided in the user's profile (such as age, state, income, occupation, gender, education, category, district, disability status, landowner status, girl child status, etc.).
+2. If they ask about eligibility or "Which schemes am I eligible for?", directly analyze this profile against the schemes in the context and recommend schemes.
+3. If they ask about a specific scheme (e.g. PM Kisan), check if they meet the eligibility criteria using the profile details, explain their eligibility status based on their profile, and do NOT ask them for demographic details again.
+4. Compare required documents for schemes against their owned documents (shown in context with ✅/❌) and explain document readiness.
+5. Only ask follow-up questions if required profile information is genuinely missing to determine eligibility.
+"""
+    else:
+        personalization_prompt = """
+[USER MODE: GUEST (no saved profile)]
+The user has no saved profile.
+Guidelines:
+1. Politely ask the user ONLY for the minimum information required to determine eligibility (specifically: Age, State, Income, and Occupation).
+2. Do NOT assume any profile data.
+3. Inform them that they can fill in their Profile or sign in to save their preferences and receive automated eligibility checks.
+"""
+
+    system_prompt = SYSTEM_PROMPT + personalization_prompt + lang_instruction + apply_context
 
     # 6. Load Session Memory
     history = CONVERSATION_MEMORY.get(session_id, [])

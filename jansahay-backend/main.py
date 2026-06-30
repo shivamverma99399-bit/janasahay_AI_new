@@ -40,7 +40,7 @@ url: str = os.environ.get("SUPABASE_URL")
 key: str = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(url, key)
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 class UserProfile(BaseModel):
     id: Optional[str] = None
@@ -58,6 +58,8 @@ class GeneralChatRequest(BaseModel):
     sessionId: str
     message: str
     language: str = "en"
+    extra_demographics: Optional[Dict[str, Any]] = None
+    user_documents: Optional[List[str]] = None
 
 class MatchSchemesRequest(BaseModel):
     user_id: str
@@ -109,7 +111,10 @@ def general_chat(chat: GeneralChatRequest):
         result = execute_ai_chat(
             user_id=user_id,
             message=chat.message,
-            session_id=chat.sessionId
+            session_id=chat.sessionId,
+            language=chat.language,
+            extra_demographics=chat.extra_demographics,
+            user_documents=chat.user_documents
         )
         return result
     except Exception as e:

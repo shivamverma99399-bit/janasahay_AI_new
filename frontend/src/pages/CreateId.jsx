@@ -35,17 +35,37 @@ const CATEGORIES = [
 export default function CreateId() {
   const nav = useNavigate();
   const { setUserId } = useApp();
-  const [formData, setFormData] = useState({
-    name: "",
-    age: "",
-    gender: "Female",
-    state: "",
-    district: "",
-    occupation: "",
-    income: "",
-    education: "",
-    category: "",
-    disabilityStatus: "No",
+  const [formData, setFormData] = useState(() => {
+    try {
+      const guestData = localStorage.getItem("js_profile_guest");
+      if (guestData) {
+        const parsed = JSON.parse(guestData);
+        return {
+          name: parsed.name || "",
+          age: parsed.age || "",
+          gender: parsed.gender || "Female",
+          state: parsed.state || "",
+          district: parsed.district || "",
+          occupation: parsed.occupation || "",
+          income: parsed.income || "",
+          education: parsed.education || "",
+          category: parsed.category || "",
+          disabilityStatus: parsed.disabilityStatus || "No",
+        };
+      }
+    } catch (e) {}
+    return {
+      name: "",
+      age: "",
+      gender: "Female",
+      state: "",
+      district: "",
+      occupation: "",
+      income: "",
+      education: "",
+      category: "",
+      disabilityStatus: "No",
+    };
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,7 +86,27 @@ export default function CreateId() {
     try {
       const res = await profileService.saveProfile(formData);
       if (res && res.user_id) {
-        setCreatedId(res.user_id);
+        const newUserId = res.user_id;
+
+        // Migrate guest documents checklist
+        const guestDocs = localStorage.getItem("js_user_documents_guest");
+        if (guestDocs) {
+          localStorage.setItem(`js_user_documents_${newUserId}`, guestDocs);
+        }
+
+        // Migrate guest extra details
+        const guestExtra = localStorage.getItem("js_profile_extra_guest");
+        if (guestExtra) {
+          localStorage.setItem(`js_profile_extra_${newUserId}`, guestExtra);
+        }
+
+        // Clean up guest keys
+        localStorage.removeItem("js_profile_guest");
+        localStorage.removeItem("js_profile_extra_guest");
+        localStorage.removeItem("js_guest_user_id");
+        localStorage.removeItem("js_user_documents_guest");
+
+        setCreatedId(newUserId);
         toast.success("JanSahay Citizen ID generated successfully!");
       } else {
         throw new Error("Invalid response from server.");

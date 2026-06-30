@@ -18,48 +18,69 @@ export const profileService = {
    * and reverse-mapping the income float back to the form's range bracket selection.
    */
   async getProfile(userId) {
-    if (!userId) return null;
-    const response = await api.post("/match-schemes", { user_id: userId });
-    const user = response.data?.user;
-    if (!user) return null;
-
-    // Load extra fields from localStorage
-    const extraStr = localStorage.getItem(`js_profile_extra_${userId}`);
-    let extra = {};
-    if (extraStr) {
-      try {
-        extra = JSON.parse(extraStr);
-      } catch (e) {}
+    const activeUserId = userId || localStorage.getItem("js_guest_user_id");
+    if (!activeUserId) {
+      const guestProfileStr = localStorage.getItem("js_profile_guest");
+      if (guestProfileStr) {
+        try {
+          return JSON.parse(guestProfileStr);
+        } catch (e) {}
+      }
+      return null;
     }
 
-    // Reverse-map income float to bracket strings
-    const incomeVal = parseFloat(user.income) || 0.0;
-    let incomeBracket = "Below ₹1 Lakh";
-    if (incomeVal > 1800000) {
-      incomeBracket = "Above ₹18L";
-    } else if (incomeVal > 600000) {
-      incomeBracket = "₹6L – ₹18L";
-    } else if (incomeVal > 300000) {
-      incomeBracket = "₹3L – ₹6L";
-    } else if (incomeVal > 100000) {
-      incomeBracket = "₹1L – ₹3L";
-    }
+    try {
+      const response = await api.post("/match-schemes", { user_id: activeUserId });
+      const user = response.data?.user;
+      if (!user) return null;
 
-    return {
-      name: user.name || "",
-      age: user.age || "",
-      gender: user.gender || "Female",
-      state: user.state || "",
-      district: extra.district || "Default District",
-      occupation: user.occupation || "",
-      income: incomeBracket,
-      education: user.education || "",
-      category: extra.category || "General",
-      disabilityStatus: extra.disabilityStatus || "No",
-      girl_child: extra.girl_child || "No",
-      land: extra.land || "No",
-      household: extra.household || ""
-    };
+      // Load extra fields from localStorage
+      const extraStr = localStorage.getItem(`js_profile_extra_${activeUserId}`) || localStorage.getItem("js_profile_extra_guest");
+      let extra = {};
+      if (extraStr) {
+        try {
+          extra = JSON.parse(extraStr);
+        } catch (e) {}
+      }
+
+      // Reverse-map income float to bracket strings
+      const incomeVal = parseFloat(user.income) || 0.0;
+      let incomeBracket = "Below ₹1 Lakh";
+      if (incomeVal > 1800000) {
+        incomeBracket = "Above ₹18L";
+      } else if (incomeVal > 600000) {
+        incomeBracket = "₹6L – ₹18L";
+      } else if (incomeVal > 300000) {
+        incomeBracket = "₹3L – ₹6L";
+      } else if (incomeVal > 100000) {
+        incomeBracket = "₹1L – ₹3L";
+      }
+
+      return {
+        name: user.name || "",
+        age: user.age || "",
+        gender: user.gender || "Female",
+        state: user.state || "",
+        district: extra.district || "Default District",
+        occupation: user.occupation || "",
+        income: incomeBracket,
+        education: user.education || "",
+        category: extra.category || "General",
+        disabilityStatus: extra.disabilityStatus || "No",
+        girl_child: extra.girl_child || "No",
+        land: extra.land || "No",
+        household: extra.household || ""
+      };
+    } catch (err) {
+      // Fallback to local profile if API fails
+      const guestProfileStr = localStorage.getItem("js_profile_guest");
+      if (guestProfileStr) {
+        try {
+          return JSON.parse(guestProfileStr);
+        } catch (e) {}
+      }
+      return null;
+    }
   },
 
   /**
@@ -93,7 +114,17 @@ export const profileService = {
         land: profileData.land || "No",
         household: profileData.household || ""
       };
+      
       localStorage.setItem(`js_profile_extra_${returnedUserId}`, JSON.stringify(extraData));
+      
+      if (!userId) {
+        localStorage.setItem("js_guest_user_id", returnedUserId);
+        localStorage.setItem("js_profile_guest", JSON.stringify({
+          ...profileData,
+          id: returnedUserId
+        }));
+        localStorage.setItem("js_profile_extra_guest", JSON.stringify(extraData));
+      }
     }
 
     return response.data;

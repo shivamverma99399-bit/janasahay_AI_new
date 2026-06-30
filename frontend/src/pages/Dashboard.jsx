@@ -31,11 +31,14 @@ export default function Dashboard() {
     queryFn: () => schemeService.getSchemes(),
   });
 
+  const guestUserId = localStorage.getItem("js_guest_user_id");
+  const activeUserId = userId || guestUserId;
+
   // Fetch dynamic user recommendations if active session userId is present
   const { data: dashboardData, isLoading: isDashboardLoading } = useQuery({
-    queryKey: ["userDashboard", userId],
-    queryFn: () => aiService.checkEligibility(userId),
-    enabled: !!userId,
+    queryKey: ["userDashboard", activeUserId],
+    queryFn: () => aiService.checkEligibility(activeUserId),
+    enabled: !!activeUserId,
   });
 
   const recommendedSchemes = dashboardData?.recommended_schemes?.slice(0, 3) || [];
@@ -59,11 +62,11 @@ export default function Dashboard() {
     <div className="relative space-y-12 pb-16 animate-fade-in-up" data-testid="dashboard">
       
       {/* Hero Section */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-blue via-blue-700 to-indigo-800 text-white p-8 sm:p-12 md:p-16">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-blue via-blue-700 to-indigo-800 text-white px-8 py-10 sm:px-12 sm:py-12 md:px-16 md:py-12 min-h-[380px] md:min-h-[420px] lg:min-h-[460px] flex items-center">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-500/20 via-transparent to-transparent opacity-60" />
         <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-white/5 blur-3xl" />
         
-        <div className="relative z-10 max-w-3xl space-y-6">
+        <div className="relative z-10 max-w-3xl space-y-5">
           <motion.div 
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}

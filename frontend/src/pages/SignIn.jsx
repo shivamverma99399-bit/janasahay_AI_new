@@ -25,7 +25,47 @@ export default function SignIn() {
     try {
       const profile = await profileService.getProfile(citizenId.trim());
       if (profile) {
-        setUserId(citizenId.trim());
+        const targetUserId = citizenId.trim();
+        
+        // Migrate Guest documents checklist
+        const guestDocs = localStorage.getItem("js_user_documents_guest");
+        if (guestDocs) {
+          localStorage.setItem(`js_user_documents_${targetUserId}`, guestDocs);
+        }
+
+        // Migrate Guest extra details
+        const guestExtra = localStorage.getItem("js_profile_extra_guest");
+        if (guestExtra) {
+          localStorage.setItem(`js_profile_extra_${targetUserId}`, guestExtra);
+        }
+
+        // Merge Guest profile demographics with the signed-in profile
+        const guestProfileStr = localStorage.getItem("js_profile_guest");
+        if (guestProfileStr) {
+          try {
+            const guestProfile = JSON.parse(guestProfileStr);
+            const mergedProfile = {
+              ...guestProfile,
+              ...profile,
+            };
+            Object.keys(mergedProfile).forEach((key) => {
+              if (!profile[key] && guestProfile[key]) {
+                mergedProfile[key] = guestProfile[key];
+              }
+            });
+            await profileService.saveProfile(mergedProfile, targetUserId);
+          } catch (e) {
+            console.error("Failed to merge guest profile during sign-in:", e);
+          }
+        }
+
+        // Clean up guest keys
+        localStorage.removeItem("js_profile_guest");
+        localStorage.removeItem("js_profile_extra_guest");
+        localStorage.removeItem("js_guest_user_id");
+        localStorage.removeItem("js_user_documents_guest");
+
+        setUserId(targetUserId);
         toast.success(`Welcome back, ${profile.name || "Citizen"}!`);
         nav("/");
       } else {

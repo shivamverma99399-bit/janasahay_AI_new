@@ -54,7 +54,6 @@ export default function Layout() {
   const { data: profile } = useQuery({
     queryKey: ["profilePreferences", userId],
     queryFn: () => profileService.getProfile(userId),
-    enabled: !!userId,
   });
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
@@ -118,7 +117,7 @@ export default function Layout() {
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-brand-ink truncate">{citizenName}</p>
-              <p className="text-xs text-brand-muted truncate">Manage Preferences</p>
+              <p className="text-xs text-brand-muted truncate">{userId ? "Signed In" : "Guest Mode"}</p>
             </div>
           </div>
         </div>
@@ -141,6 +140,15 @@ export default function Layout() {
           </div>
 
           <div className="flex items-center gap-2">
+            {userId ? (
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 whitespace-nowrap" data-testid="user-status-indicator">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Signed In
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-100 whitespace-nowrap" data-testid="user-status-indicator">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" /> Guest Mode
+              </span>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button data-testid="lang-switcher" className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-brand-ink hover:bg-slate-100 transition-colors">
