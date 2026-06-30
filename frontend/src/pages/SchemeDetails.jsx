@@ -58,6 +58,16 @@ export default function SchemeDetails() {
     enabled: !!id,
   });
 
+  const docKey = userId ? `js_user_documents_${userId}` : "js_user_documents_guest";
+  const userDocs = React.useMemo(() => {
+    try {
+      const savedDocs = localStorage.getItem(docKey);
+      return savedDocs ? JSON.parse(savedDocs) : [];
+    } catch (e) {
+      return [];
+    }
+  }, [userId, docKey]);
+
   // Auto-scroll chat panel
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -162,15 +172,6 @@ export default function SchemeDetails() {
     : (scheme.eligibility_criteria ? [scheme.eligibility_criteria] : []);
     
   const reqDocs = getRequiredDocuments(schemeTitle);
-  const docKey = userId ? `js_user_documents_${userId}` : "js_user_documents_guest";
-  const userDocs = React.useMemo(() => {
-    try {
-      const savedDocs = localStorage.getItem(docKey);
-      return savedDocs ? JSON.parse(savedDocs) : [];
-    } catch (e) {
-      return [];
-    }
-  }, [userId, docKey]);
 
   const hasCount = reqDocs.filter(d => userDocs.includes(d)).length;
   const completionPercent = reqDocs.length > 0 ? Math.round((hasCount / reqDocs.length) * 100) : 0;
