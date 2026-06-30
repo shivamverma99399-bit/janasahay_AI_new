@@ -40,7 +40,10 @@ url: str = os.environ.get("SUPABASE_URL")
 key: str = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(url, key)
 
+from typing import Optional, Dict, Any
+
 class UserProfile(BaseModel):
+    id: Optional[str] = None
     name: str
     age: int
     gender: str
@@ -58,6 +61,7 @@ class GeneralChatRequest(BaseModel):
 
 class MatchSchemesRequest(BaseModel):
     user_id: str
+    extra_demographics: Optional[Dict[str, Any]] = None
 
 @app.get("/")
 def read_root():
@@ -77,8 +81,18 @@ def get_schemes():
 @app.post("/api/users")
 def create_user(user: UserProfile):
     try:
-        response = supabase.table('users').insert(user.model_dump()).execute()
-        return {"success": True, "user_id": response.data[0]['id']}
+        user_dict = user.model_dump()
+        user_id = user_dict.get('id')
+        if user_id:
+            # Update existing user profile
+            clean_dict = {k: v for k, v in user_dict.items() if k != 'id'}
+            response = supabase.table('users').update(clean_dict).eq('id', user_id).execute()
+            return {"success": True, "user_id": user_id}
+        else:
+            # Create new user profile
+            clean_dict = {k: v for k, v in user_dict.items() if k != 'id'}
+            response = supabase.table('users').insert(clean_dict).execute()
+            return {"success": True, "user_id": response.data[0]['id']}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -116,6 +130,10 @@ def match_schemes(request: MatchSchemesRequest):
         if not user_response.data:
             raise HTTPException(status_code=404, detail="User not found")
         user_data = user_response.data[0]
+
+        # Inject extra demographics if sent from frontend
+        if request.extra_demographics:
+            user_data["extra_demographics"] = request.extra_demographics
 
         # 2. Fetch all schemes from Supabase
         schemes_response = supabase.table('schemes').select('*').execute()

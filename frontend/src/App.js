@@ -1,6 +1,6 @@
 import React from "react";
 import "@/App.css";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { AppProvider } from "@/context/AppContext";
@@ -17,6 +17,9 @@ import GovernmentUpdates from "@/pages/GovernmentUpdates";
 import GovernmentUpdateDetails from "@/pages/GovernmentUpdateDetails";
 import Notifications from "@/pages/Notifications";
 import NotFound from "@/pages/NotFound";
+import SignIn from "@/pages/SignIn";
+import CreateId from "@/pages/CreateId";
+import { useApp } from "@/context/AppContext";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -30,6 +33,9 @@ const queryClient = new QueryClient({
 function AppRoutes() {
   return (
     <Routes>
+      <Route path="/signin" element={<SignIn />} />
+      <Route path="/create-id" element={<CreateId />} />
+
       <Route element={<Layout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/search" element={<SchemeExplorer />} />
@@ -43,6 +49,7 @@ function AppRoutes() {
         <Route path="/government-updates/:id" element={<GovernmentUpdateDetails />} />
         <Route path="/notifications" element={<Notifications />} />
       </Route>
+
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

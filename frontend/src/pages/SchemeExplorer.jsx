@@ -31,6 +31,18 @@ const SORT_OPTIONS = [
   { id: "rating_desc", label: "Top Rated" },
 ];
 
+const CATEGORY_MAP = {
+  agriculture: ["agriculture"],
+  education: ["education"],
+  healthcare: ["healthcare"],
+  women: ["women"],
+  housing: ["housing"],
+  employment: ["employment", "labour"],
+  pension: ["social security", "pension"],
+  disability: ["differently-abled"],
+  business: ["business"]
+};
+
 export default function SchemeExplorer() {
   const nav = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -62,24 +74,39 @@ export default function SchemeExplorer() {
 
     return schemes
       .filter((s) => {
-        // Keyword Search
-        const searchTarget = `${s.title || ""} ${s.summary || ""} ${s.department || ""}`.toLowerCase();
+        const title = s.title || s.scheme_name || "";
+        const summary = s.summary || s.description || "";
+        const category = s.category || "";
+        const criteria = s.eligibility_criteria || "";
+        const dept = s.department || "Government of India";
+
+        // Keyword Search by Scheme Name, Description, Category, Eligibility criteria, or Nodal Department
+        const searchTarget = `${title} ${summary} ${category} ${criteria} ${dept}`.toLowerCase();
         const matchQ = !q || searchTarget.includes(q.toLowerCase());
 
-        // Category Filter
-        const matchCat = cat === "all" || String(s.category).toLowerCase() === cat.toLowerCase();
+        // Category Filter with mappings
+        let matchCat = false;
+        if (cat === "all") {
+          matchCat = true;
+        } else {
+          const dbCatLower = String(category).toLowerCase();
+          const targetCats = CATEGORY_MAP[cat.toLowerCase()] || [cat.toLowerCase()];
+          matchCat = targetCats.some(tc => dbCatLower.includes(tc) || tc.includes(dbCatLower));
+        }
 
         // State Filter
-        const matchState = state === "All India" || s.state === "All India" || String(s.state).toLowerCase() === state.toLowerCase();
+        const matchState = state === "All India" || s.state === "All India" || String(s.state || "").toLowerCase() === state.toLowerCase();
 
         return matchQ && matchCat && matchState;
       })
       .sort((a, b) => {
+        const aTitle = a.title || a.scheme_name || "";
+        const bTitle = b.title || b.scheme_name || "";
         if (sort === "name_asc") {
-          return (a.title || "").localeCompare(b.title || "");
+          return aTitle.localeCompare(bTitle);
         }
         if (sort === "name_desc") {
-          return (b.title || "").localeCompare(a.title || "");
+          return bTitle.localeCompare(aTitle);
         }
         if (sort === "rating_desc") {
           return (b.rating || 0) - (a.rating || 0);
@@ -223,7 +250,7 @@ export default function SchemeExplorer() {
           {schemesList.length === 0 ? (
             <EmptyState
               icon={Search}
-              title="No schemes matched your search"
+              title="No matching schemes found"
               body="Try widening your search terms, selection categories or start a diagnostic check with Saathi AI."
               action="Run Saathi Eligibility Matchmaker"
               onAction={() => nav("/eligibility")}

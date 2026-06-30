@@ -25,11 +25,19 @@ const STR = {
 
 export function AppProvider({ children }) {
   const [lang, setLang] = useState(() => localStorage.getItem("js_lang") || "en");
-  const [userId, setUserId] = useState(null);
+  const [userId, setUserId] = useState(() => localStorage.getItem("js_user_id") || null);
 
   useEffect(() => {
     localStorage.setItem("js_lang", lang);
   }, [lang]);
+
+  useEffect(() => {
+    if (userId) {
+      localStorage.setItem("js_user_id", userId);
+    } else {
+      localStorage.removeItem("js_user_id");
+    }
+  }, [userId]);
 
   const t = (key) => STR[lang]?.[key] || STR.en[key] || key;
 

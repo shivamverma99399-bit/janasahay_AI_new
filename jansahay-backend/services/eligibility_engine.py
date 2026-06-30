@@ -257,88 +257,253 @@ def match_user_with_schemes(user: Dict[str, Any], schemes: List[Dict[str, Any]])
     Compares the user profile against a list of schemes and calculates compatibility.
     
     Args:
-        user: The user profile dictionary.
+        user: The user profile dictionary (may contain extra_demographics).
         schemes: A list of scheme dictionaries fetched from Supabase.
         
     Returns:
-        A list of results, with match metadata injected, sorted by match_score descending.
+        A list of results, with match metadata injected, sorted by eligible first and match_score descending.
     """
     matched_results = []
     
     # Extract user profile demographics with fallbacks
     user_age = int(user.get("age", 0))
     user_income = float(user.get("income", 0.0))
-    user_gender = str(user.get("gender", "")).strip()
+    user_gender = str(user.get("gender", "")).strip().lower()
     user_state = str(user.get("state", "")).strip()
-    user_occupation = str(user.get("occupation", "")).strip()
-    user_education = str(user.get("education", "")).strip()
+    user_occupation = str(user.get("occupation", "")).strip().lower()
+    user_education = str(user.get("education", "")).strip().lower()
+    
+    # Get extra demographics sent from the frontend
+    extra = user.get("extra_demographics") or {}
+    user_category = str(extra.get("category", "General")).strip().lower()
+    user_disability = str(extra.get("disabilityStatus", "No")).strip().lower()
+    user_girl_child = str(extra.get("girl_child", "No")).strip().lower()
+    user_land = str(extra.get("land", "No")).strip().lower()
+    user_household = str(extra.get("household", "")).strip()
+    user_district = str(extra.get("district", "")).strip()
+
+    # Rule mappings for known schemes in the database
+    SCHEME_RULES = {
+        "PM Kisan Samman Nidhi": {
+            "occupation": ["farmer"],
+            "land_required": True,
+            "explanation": "farmer with land ownership"
+        },
+        "Post-Matric Scholarship": {
+            "occupation": ["student"],
+            "income_max": 250000.0,
+            "explanation": "student with income below 2.5 LPA"
+        },
+        "National Scholarship Portal": {
+            "occupation": ["student"],
+            "explanation": "student status verified"
+        },
+        "AICTE Pragati Scholarship": {
+            "occupation": ["student"],
+            "gender": ["female"],
+            "explanation": "female student"
+        },
+        "AICTE Saksham Scholarship": {
+            "occupation": ["student"],
+            "disability": "yes",
+            "explanation": "differently-abled student"
+        },
+        "PM YASASVI Scholarship": {
+            "occupation": ["student"],
+            "income_max": 250000.0,
+            "explanation": "student with income below 2.5 LPA"
+        },
+        "Kisan Credit Card": {
+            "occupation": ["farmer"],
+            "explanation": "farmer status verified"
+        },
+        "Pradhan Mantri Fasal Bima Yojana": {
+            "occupation": ["farmer"],
+            "explanation": "farmer status verified"
+        },
+        "Soil Health Card Scheme": {
+            "occupation": ["farmer"],
+            "land_required": True,
+            "explanation": "farmer with cultivable land"
+        },
+        "PM Mudra Yojana": {
+            "exclude_occupation": ["student", "retired"],
+            "explanation": "entrepreneur/business owner status"
+        },
+        "Stand-Up India": {
+            "exclude_occupation": ["student", "retired"],
+            "female_or_sc_st": True,
+            "explanation": "women or SC/ST entrepreneur"
+        },
+        "Startup India": {
+            "exclude_occupation": ["student", "retired"],
+            "explanation": "entrepreneur status"
+        },
+        "PMEGP": {
+            "age_min": 18,
+            "exclude_occupation": ["student", "retired"],
+            "explanation": "entrepreneur above 18 years"
+        },
+        "Atal Pension Yojana": {
+            "age_min": 18,
+            "age_max": 40,
+            "explanation": "age between 18 and 40 years"
+        },
+        "Sukanya Samriddhi Yojana": {
+            "girl_child": "yes",
+            "explanation": "parent of a girl child under 10 years"
+        },
+        "Beti Bachao Beti Padhao": {
+            "girl_child_or_female": True,
+            "explanation": "girl child or female beneficiary"
+        },
+        "PM Kaushal Vikas Yojana": {
+            "age_min": 15,
+            "age_max": 45,
+            "exclude_occupation": ["retired"],
+            "explanation": "youth/working age seeker"
+        },
+        "National Career Service": {
+            "exclude_occupation": ["retired"],
+            "explanation": "active job seeker"
+        },
+        "E-Shram": {
+            "age_min": 16,
+            "age_max": 59,
+            "exclude_occupation": ["student", "retired"],
+            "explanation": "unorganized worker in working age"
+        },
+        "Ayushman Bharat PM-JAY": {
+            "income_max": 300000.0,
+            "explanation": "household income below 3 LPA"
+        }
+    }
     
     for scheme in schemes:
-        # Retrieve eligibility filters from scheme (None if columns don't exist in database)
-        min_age = scheme.get("min_age")
-        max_age = scheme.get("max_age")
-        income_min = scheme.get("income_min")
-        income_max = scheme.get("income_max")
-        gender = scheme.get("gender")
-        state = scheme.get("state")
-        occupation = scheme.get("occupation")
-        education = scheme.get("education")
+        name = scheme.get("scheme_name", "")
+        # Find matching rule key
+        rule = None
+        for rule_key, r_val in SCHEME_RULES.items():
+            if rule_key.lower() in name.lower() or name.lower() in rule_key.lower():
+                rule = r_val
+                break
         
-        # Execute checks
-        age_pass, age_reason = check_age(user_age, min_age, max_age)
-        income_pass, income_reason = check_income(user_income, income_min, income_max)
-        gender_pass, gender_reason = check_gender(user_gender, gender)
-        state_pass, state_reason = check_state(user_state, state)
-        occupation_pass, occupation_reason = check_occupation(user_occupation, occupation)
-        education_pass, education_reason = check_education(user_education, education)
-        
-        # Determine overall eligibility (all evaluated checks must pass)
-        eligible = all([
-            age_pass,
-            income_pass,
-            gender_pass,
-            state_pass,
-            occupation_pass,
-            education_pass
-        ])
-        
-        # Compile match score dictionary
-        check_results = {
-            "age": age_pass,
-            "income": income_pass,
-            "gender": gender_pass,
-            "state": state_pass,
-            "occupation": occupation_pass,
-            "education": education_pass
-        }
-        score = calculate_match_score(check_results)
-        
-        # Collect passed and failed checks separately
         reasons = []
         failed_checks = []
-        for check_pass, reason_str in [
-            (age_pass, age_reason),
-            (income_pass, income_reason),
-            (gender_pass, gender_reason),
-            (state_pass, state_reason),
-            (occupation_pass, occupation_reason),
-            (education_pass, education_reason)
-        ]:
-            if check_pass:
-                reasons.append(reason_str)
-            else:
-                failed_checks.append(reason_str)
         
-        # Copy scheme data and add matching metrics
+        # State Check
+        state_pass, state_reason = check_state(user_state, scheme.get("state"))
+        if state_pass:
+            reasons.append("State matches")
+        else:
+            failed_checks.append(f"Restricted to state {scheme.get('state')}")
+            
+        if rule:
+            # Age Check
+            age_min = rule.get("age_min")
+            age_max = rule.get("age_max")
+            if age_min is not None and user_age < age_min:
+                failed_checks.append(f"Age is below minimum of {age_min}")
+            elif age_max is not None and user_age > age_max:
+                failed_checks.append(f"Age exceeds maximum of {age_max}")
+            elif age_min is not None or age_max is not None:
+                reasons.append("Age criteria satisfied")
+                
+            # Income Check
+            income_max = rule.get("income_max")
+            if income_max is not None and user_income > income_max:
+                failed_checks.append(f"Income exceeds limit of ₹{income_max:,.0f}")
+            elif income_max is not None:
+                reasons.append("Income criteria satisfied")
+                
+            # Occupation Check
+            req_occ = rule.get("occupation")
+            exc_occ = rule.get("exclude_occupation")
+            if req_occ and user_occupation not in req_occ:
+                failed_checks.append(f"{req_occ[0].title()} status required")
+            elif exc_occ and user_occupation in exc_occ:
+                failed_checks.append(f"Not eligible for {user_occupation.title()} status")
+            elif req_occ or exc_occ:
+                reasons.append("Occupation criteria satisfied")
+                
+            # Gender Check
+            req_gender = rule.get("gender")
+            if req_gender and user_gender not in req_gender:
+                failed_checks.append(f"Restricted to {req_gender[0].title()} gender")
+            elif req_gender:
+                reasons.append("Gender criteria satisfied")
+                
+            # Disability Check
+            req_dis = rule.get("disability")
+            if req_dis and user_disability != req_dis:
+                failed_checks.append("Differently-abled status required")
+            elif req_dis:
+                reasons.append("Differently-abled status matches")
+                
+            # Land Check
+            if rule.get("land_required") and user_land == "no":
+                failed_checks.append("Farmland ownership required")
+            elif rule.get("land_required"):
+                reasons.append("Farmland ownership matches")
+                
+            # Girl Child Check
+            if rule.get("girl_child") and user_girl_child != "yes":
+                failed_checks.append("Girl child under 10 required")
+            elif rule.get("girl_child"):
+                reasons.append("Girl child criteria satisfied")
+                
+            # Stand-up India check
+            if rule.get("female_or_sc_st"):
+                if user_gender == "female" or user_category in ["sc", "st"]:
+                    reasons.append("Gender or SC/ST category satisfied")
+                else:
+                    failed_checks.append("Requires female gender or SC/ST category")
+                    
+            # Beti Bachao Beti Padhao check
+            if rule.get("girl_child_or_female"):
+                if user_gender == "female" or user_girl_child == "yes":
+                    reasons.append("Female gender or girl child status satisfied")
+                else:
+                    failed_checks.append("Requires female gender or girl child status")
+        else:
+            # Fallback based on category
+            db_cat = str(scheme.get("category", "")).lower()
+            if "education" in db_cat and user_occupation != "student" and user_age > 25:
+                failed_checks.append("Student/youth status required")
+            elif "agriculture" in db_cat and user_occupation != "farmer":
+                failed_checks.append("Farmer status required")
+            else:
+                reasons.append("General demographics check satisfied")
+
+        eligible = len(failed_checks) == 0
+        
+        # Calculate Match Score: base of 100 minus penalty for failed checks
+        if eligible:
+            score = 100
+        else:
+            score = max(10, 100 - (len(failed_checks) * 30))
+            db_cat = str(scheme.get("category", "")).lower()
+            # Bonus score if category matches occupation keyword
+            if db_cat == user_occupation or (db_cat == "agriculture" and user_occupation == "farmer") or (db_cat == "education" and user_occupation == "student"):
+                score = min(90, score + 15)
+        
         matched_scheme = scheme.copy()
         matched_scheme["eligible"] = eligible
         matched_scheme["match_score"] = score
         matched_scheme["reasons"] = reasons
         matched_scheme["failed_checks"] = failed_checks
         
+        # Add explanation field
+        if rule and rule.get("explanation"):
+            matched_scheme["ai_reason"] = f"Recommended for {rule['explanation']}."
+        else:
+            matched_scheme["ai_reason"] = f"General recommendation based on {scheme.get('category', 'general')} category."
+            
         matched_results.append(matched_scheme)
         
-    # Sort by match_score descending, and secondary by eligible descending
-    matched_results.sort(key=lambda x: (x.get("match_score", 0), 1 if x.get("eligible") else 0), reverse=True)
+    # Sort results
+    # 1. Eligible first (eligible=True)
+    # 2. Sort by match_score descending
+    matched_results.sort(key=lambda x: (1 if x.get("eligible") else 0, x.get("match_score", 0)), reverse=True)
     
     return matched_results

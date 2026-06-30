@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { NavLink, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Home, Compass, Bot, User, Search, Globe, Sparkles, Newspaper, Bell
+  Home, Compass, Bot, User, Search, Globe, Sparkles, Newspaper, Bell, LogOut
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { Avatar, AvatarFallback } from "./ui/avatar";
@@ -11,7 +11,9 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuRadioGroup, DropdownMenuRadioItem
 } from "./ui/dropdown-menu";
 import { notificationService } from "@/services/notificationService";
+import { profileService } from "@/services/profileService";
 import NotificationDrawer from "./NotificationDrawer";
+import { toast } from "sonner";
 
 const LANGUAGES = [
   { code: "en", label: "English", native: "EN" },
@@ -37,7 +39,7 @@ const bottomNav = [
 ];
 
 export default function Layout() {
-  const { lang, setLang } = useApp();
+  const { lang, setLang, userId, setUserId } = useApp();
   const nav = useNavigate();
   const location = useLocation();
 
@@ -49,10 +51,21 @@ export default function Layout() {
     refetchInterval: 10000,
   });
 
+  const { data: profile } = useQuery({
+    queryKey: ["profilePreferences", userId],
+    queryFn: () => profileService.getProfile(userId),
+    enabled: !!userId,
+  });
+
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
-  // Placeholder generic citizen info
-  const citizenName = "Indian Citizen";
+  const citizenName = profile?.name || "Indian Citizen";
+
+  const handleLogout = () => {
+    setUserId(null);
+    toast.success("Successfully logged out.");
+    nav("/signin");
+  };
 
   return (
     <div className="min-h-screen bg-brand-surface/50">
@@ -99,7 +112,9 @@ export default function Layout() {
         <div className="p-4 border-t border-slate-100">
           <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => nav("/profile")} data-testid="sidebar-profile">
             <Avatar className="w-10 h-10">
-              <AvatarFallback className="bg-brand-blueLight text-brand-blue">IC</AvatarFallback>
+              <AvatarFallback className="bg-brand-blueLight text-brand-blue">
+                {citizenName.substring(0, 2).toUpperCase()}
+              </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-brand-ink truncate">{citizenName}</p>
@@ -160,23 +175,55 @@ export default function Layout() {
               )}
             </button>
 
+            {!userId && (
+              <div className="hidden sm:flex items-center gap-1.5 mr-2">
+                <button
+                  onClick={() => nav("/signin")}
+                  className="px-3 h-9 text-xs font-bold text-slate-750 hover:text-brand-blue hover:bg-slate-100 rounded-lg transition-all"
+                  data-testid="header-signin-btn"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => nav("/create-id")}
+                  className="px-3.5 h-9 text-xs font-bold text-white bg-brand-blue hover:bg-blue-700 rounded-lg transition-all shadow-sm flex items-center gap-1"
+                  data-testid="header-create-id-btn"
+                >
+                  Create ID
+                </button>
+              </div>
+            )}
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button data-testid="header-avatar" className="rounded-full focus:outline-none">
                   <Avatar className="w-9 h-9 ring-2 ring-white shadow-sm">
-                    <AvatarFallback className="bg-brand-blueLight text-brand-blue">IC</AvatarFallback>
+                    <AvatarFallback className="bg-brand-blueLight text-brand-blue">
+                      {citizenName.substring(0, 2).toUpperCase()}
+                    </AvatarFallback>
                   </Avatar>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
                   <div>
-                    <p className="font-semibold text-brand-ink">{citizenName}</p>
-                    <p className="text-xs text-brand-muted">Guest User</p>
+                    <p className="font-semibold text-brand-ink truncate">{citizenName}</p>
+                    <p className="text-xs text-brand-muted truncate">
+                      {userId ? `ID: ${userId.substring(0, 8)}...` : "Guest User"}
+                    </p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => nav("/profile")} data-testid="menu-profile"><User className="w-4 h-4 mr-2" />Profile Preferences</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {userId ? (
+                  <DropdownMenuItem onClick={handleLogout} className="text-rose-650 focus:text-rose-700 focus:bg-rose-50" data-testid="menu-logout"><LogOut className="w-4 h-4 mr-2" />Log Out</DropdownMenuItem>
+                ) : (
+                  <>
+                    <DropdownMenuItem onClick={() => nav("/signin")} data-testid="menu-signin"><User className="w-4 h-4 mr-2" />Sign In</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => nav("/create-id")} data-testid="menu-createid"><Sparkles className="w-4 h-4 mr-2 text-brand-orange" />Create ID</DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

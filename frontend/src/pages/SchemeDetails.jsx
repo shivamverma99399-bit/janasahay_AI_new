@@ -11,11 +11,39 @@ import { aiService } from "@/services/aiService";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { useApp } from "@/context/AppContext";
+
+const getRequiredDocuments = (schemeName) => {
+  const name = String(schemeName).toLowerCase();
+  if (name.includes("kisan") || name.includes("soil") || name.includes("fasal")) {
+    return ["Aadhaar Card", "Bank Passbook", "Land Record"];
+  }
+  if (name.includes("scholarship") || name.includes("pragati") || name.includes("yasasvi")) {
+    if (name.includes("saksham")) {
+      return ["Aadhaar Card", "Disability Certificate", "Bank Passbook"];
+    }
+    return ["Aadhaar Card", "Income Certificate", "Caste Certificate", "Bank Passbook"];
+  }
+  if (name.includes("mudra") || name.includes("startup") || name.includes("stand-up") || name.includes("pmegp")) {
+    if (name.includes("stand-up")) {
+      return ["Aadhaar Card", "PAN Card", "Bank Passbook", "Caste Certificate"];
+    }
+    return ["Aadhaar Card", "PAN Card", "Bank Passbook"];
+  }
+  if (name.includes("sukanya") || name.includes("beti")) {
+    return ["Aadhaar Card", "Bank Passbook", "Passport Size Photograph"];
+  }
+  if (name.includes("ayushman")) {
+    return ["Aadhaar Card", "Domicile Certificate", "Income Certificate"];
+  }
+  return ["Aadhaar Card", "Bank Passbook", "Income Certificate"];
+};
 
 export default function SchemeDetails() {
   const { id } = useParams();
   const nav = useNavigate();
   const [isSaved, setIsSaved] = useState(false);
+  const { userId } = useApp();
 
   // AI Assistant panel local state
   const [chatInput, setChatInput] = useState("");
@@ -79,7 +107,7 @@ export default function SchemeDetails() {
       const benefit = scheme.benefit || "evaluated support";
       
       const contextPrompt = `Regarding the scheme "${title}" (Department: ${department}, Benefits: ${benefit}): ${userText}`;
-      const response = await aiService.sendChatMessage(contextPrompt, chatMessages);
+      const response = await aiService.sendChatMessage(contextPrompt, chatMessages, userId || "user_001");
       
       setChatMessages((prev) => [
         ...prev,
@@ -133,9 +161,20 @@ export default function SchemeDetails() {
     ? scheme.eligibility 
     : (scheme.eligibility_criteria ? [scheme.eligibility_criteria] : []);
     
-  const schemeDocuments = Array.isArray(scheme.documents) 
-    ? scheme.documents 
-    : ["Aadhaar Card", "Income Certificate", "Address Proof"];
+  const reqDocs = getRequiredDocuments(schemeTitle);
+  const docKey = userId ? `js_user_documents_${userId}` : "js_user_documents_guest";
+  const userDocs = React.useMemo(() => {
+    try {
+      const savedDocs = localStorage.getItem(docKey);
+      return savedDocs ? JSON.parse(savedDocs) : [];
+    } catch (e) {
+      return [];
+    }
+  }, [userId, docKey]);
+
+  const hasCount = reqDocs.filter(d => userDocs.includes(d)).length;
+  const completionPercent = reqDocs.length > 0 ? Math.round((hasCount / reqDocs.length) * 100) : 0;
+  const missingDocs = reqDocs.filter(d => !userDocs.includes(d));
     
   const schemeSteps = Array.isArray(scheme.steps)
     ? scheme.steps
@@ -145,7 +184,7 @@ export default function SchemeDetails() {
   const officialUrl = scheme.official_website || "https://india.gov.in";
 
   return (
-    <div className="space-y-8 animate-fade-in-up pb-32 lg:pb-16" data-testid="scheme-details">
+    <div className="space-y-8 animate-fade-in-up pb-48 lg:pb-36" data-testid="scheme-details">
       
       {/* Back button */}
       <button onClick={() => nav(-1)} className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-muted hover:text-brand-ink transition-colors" data-testid="back-button">
@@ -270,19 +309,53 @@ export default function SchemeDetails() {
             {/* Documents Tab Content */}
             <TabsContent value="documents" className="mt-6 focus:outline-none">
               <div className="card-soft p-6 sm:p-8 space-y-6 border border-slate-100 bg-white">
-                <h3 className="font-display text-lg font-bold text-brand-ink mb-2">Required Documentation</h3>
-                {schemeDocuments.length > 0 ? (
-                  <div className="grid sm:grid-cols-2 gap-3">
-                    {schemeDocuments.map((doc, i) => (
-                      <div key={i} className="flex items-center gap-3 p-4 rounded-xl border border-slate-100 bg-slate-50">
-                        <FileText className="w-5 h-5 text-brand-blue flex-shrink-0" />
-                        <span className="text-sm font-semibold text-brand-ink">{doc}</span>
-                      </div>
-                    ))}
+                <div className="flex justify-between items-center border-b pb-3 flex-wrap gap-2">
+                  <h3 className="font-display text-lg font-bold text-brand-ink">Required Documentation</h3>
+                  <span className="text-xs text-brand-blue font-semibold cursor-pointer hover:underline" onClick={() => nav("/profile")}>
+                    Manage Documents in Profile →
+                  </span>
+                </div>
+                
+                {/* Available vs Missing Diagnostics */}
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <p className="text-xs uppercase tracking-wider font-bold text-brand-muted">Required Checklist</p>
+                    <div className="space-y-2">
+                      {reqDocs.map((doc, i) => {
+                        const hasDoc = userDocs.includes(doc);
+                        return (
+                          <div key={i} className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${hasDoc ? 'bg-emerald-50/50 border-emerald-100' : 'bg-slate-50 border-slate-100'}`}>
+                            <span className="text-sm">{hasDoc ? "✅" : "❌"}</span>
+                            <span className="text-xs font-semibold text-brand-ink flex-1">{doc}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                ) : (
-                  <p className="text-sm text-brand-muted">No specific documents listed. General identity proof is typically required.</p>
-                )}
+
+                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/60 flex flex-col justify-between space-y-4">
+                    <div>
+                      <p className="text-xs uppercase tracking-wider font-bold text-brand-muted mb-2">Completion Status</p>
+                      <p className="font-display text-2xl font-extrabold text-brand-ink">{completionPercent}% Complete</p>
+                      <p className="text-xs text-slate-600 mt-2">
+                        You already have <span className="font-bold">{hasCount}</span> of <span className="font-bold">{reqDocs.length}</span> required documents.
+                      </p>
+                    </div>
+
+                    {missingDocs.length > 0 && (
+                      <div className="pt-3 border-t">
+                        <p className="text-[10px] uppercase font-bold text-rose-700 tracking-wider mb-1.5">Missing Documents:</p>
+                        <ul className="space-y-1.5 pl-1">
+                          {missingDocs.map((doc, i) => (
+                            <li key={i} className="text-xs text-rose-600 font-semibold flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> {doc}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </TabsContent>
 
@@ -332,6 +405,34 @@ export default function SchemeDetails() {
               </div>
             </section>
           )}
+
+          {/* Sticky Official Website Redirect and Checker Nudge Footer Bar */}
+          <div className="fixed bottom-20 left-0 right-0 lg:relative lg:bottom-0 lg:left-0 lg:right-0 lg:max-w-none z-20 px-4 sm:px-6 lg:px-0 mt-8">
+            <div className="card-soft p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl border border-slate-100 bg-white">
+              <div className="text-center sm:text-left">
+                <p className="text-[10px] uppercase font-bold text-brand-muted tracking-wider">Official Service Provider</p>
+                <p className="font-display font-semibold text-brand-ink text-sm mt-0.5">{schemeDept}</p>
+              </div>
+              
+              <div className="flex gap-3 w-full sm:w-auto">
+                <button
+                  onClick={() => nav("/eligibility")}
+                  className="flex-1 h-11 px-5 rounded-xl border border-slate-200 text-brand-ink hover:border-brand-blue hover:text-brand-blue font-semibold text-xs transition-colors"
+                >
+                  Verify Eligibility First
+                </button>
+                <a
+                  href={officialUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-testid="apply-now"
+                  className="flex-1 h-11 px-6 rounded-xl bg-brand-blue hover:bg-blue-700 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all"
+                >
+                  Apply on Official Website <Globe className="w-4 h-4" />
+                </a>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Right Column: Interactive AI Assistant Panel */}
@@ -395,34 +496,6 @@ export default function SchemeDetails() {
           </div>
         </div>
 
-      </div>
-
-      {/* Sticky Official Website Redirect and Checker Nudge Footer Bar */}
-      <div className="fixed bottom-20 lg:bottom-6 inset-x-0 lg:left-72 z-30 px-4 sm:px-6 lg:px-10">
-        <div className="max-w-4xl mx-auto card-soft p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl border border-slate-100 bg-white">
-          <div className="text-center sm:text-left">
-            <p className="text-[10px] uppercase font-bold text-brand-muted tracking-wider">Official Service Provider</p>
-            <p className="font-display font-semibold text-brand-ink text-sm mt-0.5">{schemeDept}</p>
-          </div>
-          
-          <div className="flex gap-3 w-full sm:w-auto">
-            <button
-              onClick={() => nav("/eligibility")}
-              className="flex-1 h-11 px-5 rounded-xl border border-slate-200 text-brand-ink hover:border-brand-blue hover:text-brand-blue font-semibold text-xs transition-colors"
-            >
-              Verify Eligibility First
-            </button>
-            <a
-              href={officialUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              data-testid="apply-now"
-              className="flex-1 h-11 px-6 rounded-xl bg-brand-blue hover:bg-blue-700 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all"
-            >
-              Apply on Official Website <Globe className="w-4 h-4" />
-            </a>
-          </div>
-        </div>
       </div>
 
     </div>

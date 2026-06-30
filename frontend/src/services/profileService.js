@@ -23,6 +23,15 @@ export const profileService = {
     const user = response.data?.user;
     if (!user) return null;
 
+    // Load extra fields from localStorage
+    const extraStr = localStorage.getItem(`js_profile_extra_${userId}`);
+    let extra = {};
+    if (extraStr) {
+      try {
+        extra = JSON.parse(extraStr);
+      } catch (e) {}
+    }
+
     // Reverse-map income float to bracket strings
     const incomeVal = parseFloat(user.income) || 0.0;
     let incomeBracket = "Below ₹1 Lakh";
@@ -41,12 +50,15 @@ export const profileService = {
       age: user.age || "",
       gender: user.gender || "Female",
       state: user.state || "",
-      district: user.district || "Default District",
+      district: extra.district || "Default District",
       occupation: user.occupation || "",
       income: incomeBracket,
       education: user.education || "",
-      category: user.category || "General",
-      disabilityStatus: user.disabilityStatus || "No"
+      category: extra.category || "General",
+      disabilityStatus: extra.disabilityStatus || "No",
+      girl_child: extra.girl_child || "No",
+      land: extra.land || "No",
+      household: extra.household || ""
     };
   },
 
@@ -54,7 +66,7 @@ export const profileService = {
    * Saves demographics preferences to FastAPI backend /api/users.
    * Maps fields to fit Pydantic schema validation.
    */
-  async saveProfile(profileData) {
+  async saveProfile(profileData, userId = null) {
     const payload = {
       name: profileData.name || "Guest Citizen",
       age: parseInt(profileData.age, 10) || 0,
@@ -65,7 +77,25 @@ export const profileService = {
       education: profileData.education || "All"
     };
 
+    if (userId) {
+      payload.id = userId;
+    }
+
     const response = await api.post("/users", payload);
+    const returnedUserId = response.data?.user_id;
+
+    if (returnedUserId) {
+      const extraData = {
+        district: profileData.district || "Default District",
+        category: profileData.category || "General",
+        disabilityStatus: profileData.disabilityStatus || "No",
+        girl_child: profileData.girl_child || "No",
+        land: profileData.land || "No",
+        household: profileData.household || ""
+      };
+      localStorage.setItem(`js_profile_extra_${returnedUserId}`, JSON.stringify(extraData));
+    }
+
     return response.data;
   },
 

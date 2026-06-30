@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useApp } from "@/context/AppContext";
@@ -10,6 +10,7 @@ export default function EligibilityResults() {
   const location = useLocation();
   const nav = useNavigate();
   const { userId: contextUserId } = useApp();
+  const [showExcluded, setShowExcluded] = useState(false);
   
   const { userId: stateUserId, answers, error: stateError } = location.state || {};
   const activeUserId = stateUserId || contextUserId;
@@ -24,7 +25,16 @@ export default function EligibilityResults() {
   // Fetch match recommendations from backend /api/match-schemes
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["eligibilityMatches", activeUserId],
-    queryFn: () => aiService.checkEligibility(activeUserId),
+    queryFn: () => {
+      const extraStr = localStorage.getItem(`js_profile_extra_${activeUserId}`);
+      let extra = null;
+      if (extraStr) {
+        try {
+          extra = JSON.parse(extraStr);
+        } catch (e) {}
+      }
+      return aiService.checkEligibility(activeUserId, extra);
+    },
     enabled: !!activeUserId,
   });
 
@@ -191,14 +201,25 @@ export default function EligibilityResults() {
 
       {/* Not Eligible List */}
       <section className="space-y-4">
-        <div className="border-b pb-2">
-          <h2 className="font-display text-xl font-bold text-slate-550 flex items-center gap-2">
-            <XCircle className="w-5 h-5 text-slate-400" /> Excluded Schemes ({notEligible.length})
-          </h2>
-          <p className="text-xs text-brand-muted">Schemes where community eligibility caps exceed current parameters.</p>
+        <div className="border-b pb-2 flex justify-between items-center">
+          <div>
+            <h2 className="font-display text-xl font-bold text-slate-500 flex items-center gap-2">
+              <XCircle className="w-5 h-5 text-slate-400" /> Excluded Schemes ({notEligible.length})
+            </h2>
+            <p className="text-xs text-brand-muted">Schemes where community eligibility caps exceed current parameters.</p>
+          </div>
+          {notEligible.length > 0 && (
+            <button
+              onClick={() => setShowExcluded(!showExcluded)}
+              data-testid="toggle-excluded-btn"
+              className="text-xs font-semibold text-brand-blue hover:underline bg-brand-blueLight px-3 py-1.5 rounded-lg"
+            >
+              {showExcluded ? "Hide Excluded" : "Show Excluded"}
+            </button>
+          )}
         </div>
-        {notEligible.length > 0 ? (
-          <div className="card-soft divide-y divide-slate-100 border border-slate-100 bg-white shadow-sm">
+        {showExcluded && notEligible.length > 0 ? (
+          <div className="card-soft divide-y divide-slate-100 border border-slate-100 bg-white shadow-sm animate-fade-in">
             {notEligible.map((s, idx) => (
               <div key={s.id || idx} className="p-5 flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
@@ -222,6 +243,10 @@ export default function EligibilityResults() {
                 <span className="text-xs text-slate-400 font-bold uppercase mt-1">{s.state || "All India"}</span>
               </div>
             ))}
+          </div>
+        ) : !showExcluded && notEligible.length > 0 ? (
+          <div className="p-6 text-center text-xs text-brand-muted bg-slate-50/50 rounded-xl border border-dashed">
+            {notEligible.length} schemes excluded based on your profile details. Click "Show Excluded" to view.
           </div>
         ) : (
           <div className="p-8 text-center border border-dashed rounded-2xl text-brand-muted text-sm bg-slate-50/50">

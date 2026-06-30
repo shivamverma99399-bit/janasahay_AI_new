@@ -7,9 +7,9 @@ export const aiService = {
   /**
    * Sends user chat message to the backend.
    */
-  async sendChatMessage(message, history = []) {
+  async sendChatMessage(message, history = [], userId = "user_001") {
     const response = await api.post("/ai/chat", {
-      userId: "user_001",
+      userId: userId,
       sessionId: "session_001",
       message,
       language: "en"
@@ -25,8 +25,12 @@ export const aiService = {
   /**
    * Checks scheme eligibility for the user.
    */
-  async checkEligibility(userId) {
-    const response = await api.post("/match-schemes", { user_id: userId });
+  async checkEligibility(userId, extraDemographics = null) {
+    const payload = { user_id: userId };
+    if (extraDemographics) {
+      payload.extra_demographics = extraDemographics;
+    }
+    const response = await api.post("/match-schemes", payload);
     return response.data;
   }
 };
