@@ -105,11 +105,16 @@ def query_llm(system_prompt: str, user_prompt: str, history: List[Dict[str, str]
     key_to_use = None
     
     if gemini_key:
-        api_to_call = "gemini"
-        key_to_use = gemini_key
-    elif openai_key:
-        api_to_call = "openai"
-        key_to_use = openai_key
+        gemini_key = gemini_key.strip().strip('"').strip("'")
+        if gemini_key:
+            api_to_call = "gemini"
+            key_to_use = gemini_key
+            
+    if not api_to_call and openai_key:
+        openai_key = openai_key.strip().strip('"').strip("'")
+        if openai_key:
+            api_to_call = "openai"
+            key_to_use = openai_key
         
     if not api_to_call:
         raise ValueError("No active GEMINI_API_KEY or OPENAI_API_KEY set in backend environment.")
