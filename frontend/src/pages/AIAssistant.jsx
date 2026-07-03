@@ -245,9 +245,13 @@ export default function AIAssistant() {
 
   const activeQuery = searchParams.get("q");
 
-  // Load conversations list on mount
+  // Load conversations list on mount / userId change
   useEffect(() => {
-    const savedConvStr = localStorage.getItem("js_chat_conversations");
+    const isGuest = !userId;
+    const storageKey = isGuest ? "js_chat_conversations_guest" : `js_chat_conversations_${userId}`;
+    const storage = isGuest ? sessionStorage : localStorage;
+
+    const savedConvStr = storage.getItem(storageKey);
     let loadedConv = [];
     if (savedConvStr) {
       try {
@@ -272,12 +276,13 @@ export default function AIAssistant() {
         }],
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }];
-      localStorage.setItem("js_chat_conversations", JSON.stringify(loadedConv));
+      storage.setItem(storageKey, JSON.stringify(loadedConv));
     }
     
     setConversations(loadedConv);
     setActiveSessionId(loadedConv[0].id);
-  }, []);
+    setFailedRequest(null);
+  }, [userId]);
 
   // Handle external redirect queries (e.g. from Scheme details card button click)
   useEffect(() => {
@@ -316,10 +321,13 @@ export default function AIAssistant() {
     }
   };
 
-  // Helper to sync conversation array to state and localStorage
+  // Helper to sync conversation array to state and storage
   const saveConversations = (updatedList) => {
     setConversations(updatedList);
-    localStorage.setItem("js_chat_conversations", JSON.stringify(updatedList));
+    const isGuest = !userId;
+    const storageKey = isGuest ? "js_chat_conversations_guest" : `js_chat_conversations_${userId}`;
+    const storage = isGuest ? sessionStorage : localStorage;
+    storage.setItem(storageKey, JSON.stringify(updatedList));
   };
 
   // Start new empty conversation session

@@ -61,6 +61,7 @@ export default function Layout() {
   const citizenName = profile?.name || "Indian Citizen";
 
   const handleLogout = () => {
+    sessionStorage.removeItem("js_chat_conversations_guest");
     setUserId(null);
     toast.success("Successfully logged out.");
     nav("/signin");

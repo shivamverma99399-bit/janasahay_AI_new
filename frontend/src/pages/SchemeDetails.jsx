@@ -50,6 +50,7 @@ export default function SchemeDetails() {
   const [chatMessages, setChatMessages] = useState([]);
   const [isAiTyping, setIsAiTyping] = useState(false);
   const chatEndRef = useRef(null);
+  const [chatSessionId] = useState(() => `session_details_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`);
 
   // Fetch scheme details dynamically by searching the full list locally
   const { data: scheme, isLoading, isError } = useQuery({
@@ -117,7 +118,7 @@ export default function SchemeDetails() {
       const benefit = scheme.benefit || "evaluated support";
       
       const contextPrompt = `Regarding the scheme "${title}" (Department: ${department}, Benefits: ${benefit}): ${userText}`;
-      const response = await aiService.sendChatMessage(contextPrompt, chatMessages, userId || "user_001");
+      const response = await aiService.sendChatMessage(contextPrompt, chatMessages, userId || "user_001", chatSessionId);
       
       setChatMessages((prev) => [
         ...prev,

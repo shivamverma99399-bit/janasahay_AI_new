@@ -64,6 +64,7 @@ export default function SignIn() {
         localStorage.removeItem("js_profile_extra_guest");
         localStorage.removeItem("js_guest_user_id");
         localStorage.removeItem("js_user_documents_guest");
+        sessionStorage.removeItem("js_chat_conversations_guest");
 
         setUserId(targetUserId);
         toast.success(`Welcome back, ${profile.name || "Citizen"}!`);
