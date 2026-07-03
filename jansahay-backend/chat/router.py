@@ -1,5 +1,6 @@
 import os
 import logging
+from typing import Optional
 from fastapi import APIRouter, HTTPException, Response, status
 from supabase import create_client, Client
 

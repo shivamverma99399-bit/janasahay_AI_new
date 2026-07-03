@@ -45,7 +45,10 @@ def call_gemini(system_prompt: str, user_prompt: str, history: List[Dict[str, st
     latency = time.time() - start_time
     logger.info(f"Gemini API Latency: {latency:.3f} seconds")
     
-    response.raise_for_status()
+    if response.status_code != 200:
+        logger.error(f"Gemini API Error (Status {response.status_code}): {response.text}")
+        response.raise_for_status()
+        
     res_data = response.json()
     
     try:
