@@ -1,14 +1,16 @@
-import requests
 import os
+from dotenv import load_dotenv
+
+# Load environment variables at the very beginning
+load_dotenv(override=True)
+
+import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from supabase import create_client, Client
-from dotenv import load_dotenv
 from services.eligibility_engine import match_user_with_schemes
 from chat.router import router as chat_router
-
-load_dotenv(override=True)
 
 app = FastAPI(title="JanSahay AI Backend")
 
@@ -36,9 +38,15 @@ app.add_middleware(
 )
 
 
-url: str = os.environ.get("SUPABASE_URL")
-key: str = os.environ.get("SUPABASE_KEY")
-supabase: Client = create_client(url, key)
+_supabase: Optional[Client] = None
+
+def get_supabase() -> Client:
+    global _supabase
+    if _supabase is None:
+        url: str = os.environ.get("SUPABASE_URL", "")
+        key: str = os.environ.get("SUPABASE_KEY", "")
+        _supabase = create_client(url, key)
+    return _supabase
 
 from typing import Optional, Dict, Any, List
 
@@ -65,7 +73,7 @@ def read_root():
 @app.get("/api/schemes")
 def get_schemes():
     try:
-        response = supabase.table('schemes').select('*').execute()
+        response = get_supabase().table('schemes').select('*').execute()
         return {"data": response.data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -81,12 +89,12 @@ def create_user(user: UserProfile):
         if user_id:
             # Update existing user profile
             clean_dict = {k: v for k, v in user_dict.items() if k != 'id'}
-            response = supabase.table('users').update(clean_dict).eq('id', user_id).execute()
+            response = get_supabase().table('users').update(clean_dict).eq('id', user_id).execute()
             return {"success": True, "user_id": user_id}
         else:
             # Create new user profile
             clean_dict = {k: v for k, v in user_dict.items() if k != 'id'}
-            response = supabase.table('users').insert(clean_dict).execute()
+            response = get_supabase().table('users').insert(clean_dict).execute()
             return {"success": True, "user_id": response.data[0]['id']}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -101,7 +109,7 @@ def match_schemes(request: MatchSchemesRequest):
     """
     try:
         # 1. Fetch user by ID from Supabase
-        user_response = supabase.table('users').select('*').eq('id', request.user_id).execute()
+        user_response = get_supabase().table('users').select('*').eq('id', request.user_id).execute()
         if not user_response.data:
             raise HTTPException(status_code=404, detail="User not found")
         user_data = user_response.data[0]
@@ -111,7 +119,7 @@ def match_schemes(request: MatchSchemesRequest):
             user_data["extra_demographics"] = request.extra_demographics
 
         # 2. Fetch all schemes from Supabase
-        schemes_response = supabase.table('schemes').select('*').execute()
+        schemes_response = get_supabase().table('schemes').select('*').execute()
         all_schemes = schemes_response.data
 
         # 3. Match user with schemes using local python logic
@@ -317,7 +325,7 @@ def clear_all_v1_notifications():
 def health_check():
     try:
         # Check supabase connection
-        response = supabase.table('schemes').select('id').limit(1).execute()
+        response = get_supabase().table('schemes').select('id').limit(1).execute()
         return {"status": "healthy", "database": "connected"}
     except Exception as e:
         return {"status": "unhealthy", "database": str(e)}
@@ -327,7 +335,7 @@ def health_check():
 @app.get("/api/schemes/search")
 def search_schemes(q: Optional[str] = None):
     try:
-        response = supabase.table('schemes').select('*').execute()
+        response = get_supabase().table('schemes').select('*').execute()
         all_schemes = response.data or []
         if not q:
             return {"data": all_schemes}
@@ -352,7 +360,7 @@ def search_schemes(q: Optional[str] = None):
 @app.get("/api/schemes/categories")
 def get_categories():
     try:
-        response = supabase.table('schemes').select('category').execute()
+        response = get_supabase().table('schemes').select('category').execute()
         categories = list(set([item['category'] for item in response.data if item.get('category')]))
         return {"data": [{"id": c.lower(), "label": c} for c in categories]}
     except Exception as e:

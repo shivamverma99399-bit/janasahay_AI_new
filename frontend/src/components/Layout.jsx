@@ -23,7 +23,7 @@ const LANGUAGES = [
 const sideNav = [
   { to: "/", label: "Home", icon: Home },
   { to: "/search", label: "Explore Schemes", icon: Compass },
-  { to: "/eligibility", label: "Eligibility Checker", icon: Sparkles },
+  { to: "/eligibility", label: "AI Eligibility Checker", icon: Sparkles },
   { to: "/ai", label: "Saathi AI Chat", icon: Bot, badge: "AI" },
   { to: "/government-updates", label: "Govt. Updates", icon: Newspaper },
   { to: "/notifications", label: "Notifications", icon: Bell },
@@ -86,10 +86,9 @@ export default function Layout() {
               }}
               data-testid={`nav-${item.to.replace("/", "") || "home"}`}
               className={({ isActive }) =>
-                `group flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  isActive && item.to !== "/notifications"
-                    ? "bg-brand-blueLight text-brand-blue"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-brand-ink"
+                `group flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive && item.to !== "/notifications"
+                  ? "bg-brand-blueLight text-brand-blue"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-brand-ink"
                 }`
               }
             >
@@ -249,7 +248,7 @@ export default function Layout() {
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass-nav border-t border-slate-100" data-testid="bottom-nav">
         <div className="grid grid-cols-5 items-end h-[72px] pb-2 px-2">
           {bottomNav.map((item) => {
-            const active = item.to === "/" 
+            const active = item.to === "/"
               ? location.pathname === "/"
               : location.pathname.startsWith(item.to);
             const Icon = item.icon;

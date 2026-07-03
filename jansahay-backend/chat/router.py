@@ -15,15 +15,19 @@ logger.setLevel(logging.INFO)
 
 router = APIRouter()
 
-# Initialize Supabase client for DB contexts
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
-supabase_client = None
-if SUPABASE_URL and SUPABASE_KEY:
-    try:
-        supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
-    except Exception as e:
-        logger.error(f"Failed to initialize Supabase client in chat router: {e}")
+_supabase_client = None
+
+def get_supabase_client() -> Optional[Client]:
+    global _supabase_client
+    if _supabase_client is None:
+        url = os.environ.get("SUPABASE_URL", "")
+        key = os.environ.get("SUPABASE_KEY", "")
+        if url and key:
+            try:
+                _supabase_client = create_client(url, key)
+            except Exception as e:
+                logger.error(f"Failed to initialize Supabase client in chat router: {e}")
+    return _supabase_client
 
 @router.post("/chat")
 def chat_endpoint(request: GeneralChatRequest, response: Response):
@@ -49,8 +53,9 @@ def chat_endpoint(request: GeneralChatRequest, response: Response):
     try:
         # 3. Load User Profile & Context
         active_user_id = None if user_id == "user_001" or not user_id else user_id
-        user_profile = load_user_profile(active_user_id, request.extra_demographics, supabase_client)
-        context_data = build_context(user_profile, request.user_documents, sanitized_message, supabase_client)
+        db_client = get_supabase_client()
+        user_profile = load_user_profile(active_user_id, request.extra_demographics, db_client)
+        context_data = build_context(user_profile, request.user_documents, sanitized_message, db_client)
         
         # 4. Get Conversation Memory
         history = get_history(session_id)
