@@ -18,9 +18,23 @@ export const schemeService = {
    * Workaround: Fits the current backend which lacks a single-item GET route.
    */
   async getSchemeById(id) {
+    if (!id) return null;
+    const cleanId = String(id).trim().toLowerCase();
     const response = await api.get("/schemes");
     const list = response.data.data || [];
-    return list.find(s => String(s.id) === String(id)) || null;
+    
+    // 1. Direct ID match
+    let match = list.find(s => String(s.id).toLowerCase() === cleanId);
+    if (match) return match;
+
+    // 2. Slug / title match fallback
+    match = list.find(s => {
+      const title = String(s.title || s.scheme_name || "").toLowerCase();
+      const normSlug = cleanId.replace(/[-_]/g, " ");
+      return title.includes(normSlug) || normSlug.includes(title);
+    });
+
+    return match || null;
   },
 
   /**

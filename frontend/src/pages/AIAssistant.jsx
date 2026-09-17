@@ -40,7 +40,7 @@ function Markdown({ text }) {
   const parts = text.split("```");
   
   return (
-    <div className="space-y-3 text-sm leading-relaxed text-slate-700">
+    <div className="space-y-3 text-sm leading-relaxed text-slate-700 break-words overflow-hidden">
       {parts.map((part, index) => {
         const isCodeBlock = index % 2 === 1;
         
@@ -98,7 +98,9 @@ function CodeBlock({ code, language }) {
 function FormattedTextBlock({ text }) {
   if (!text) return null;
   
-  const lines = text.split("\n");
+  // Normalize raw <br> tags produced by LLMs to clean newlines
+  const normalizedText = text.replace(/<br\s*\/?>/gi, "\n");
+  const lines = normalizedText.split("\n");
   const elements = [];
   let currentList = [];
   let listType = null; // 'ul' or 'ol'
@@ -109,7 +111,7 @@ function FormattedTextBlock({ text }) {
         elements.push(
           <ul key={`ul-${keyIndex}`} className="list-disc pl-6 space-y-1 my-2">
             {currentList.map((item, idx) => (
-              <li key={idx} className="text-slate-700">{renderInline(item)}</li>
+              <li key={idx} className="text-slate-700 break-words">{renderInline(item)}</li>
             ))}
           </ul>
         );
@@ -117,7 +119,7 @@ function FormattedTextBlock({ text }) {
         elements.push(
           <ol key={`ol-${keyIndex}`} className="list-decimal pl-6 space-y-1 my-2">
             {currentList.map((item, idx) => (
-              <li key={idx} className="text-slate-700">{renderInline(item)}</li>
+              <li key={idx} className="text-slate-700 break-words">{renderInline(item)}</li>
             ))}
           </ol>
         );
@@ -216,7 +218,7 @@ function FormattedTextBlock({ text }) {
     else {
       flushList(i);
       if (trimmed) {
-        elements.push(<p key={i} className="my-1.5">{renderInline(trimmed)}</p>);
+        elements.push(<p key={i} className="my-1.5 break-words leading-relaxed">{renderInline(trimmed)}</p>);
       }
     }
   }
@@ -531,117 +533,187 @@ export default function AIAssistant() {
     }
   };
 
-  return (
-    <div className="h-[calc(100vh-10rem)] lg:h-[calc(100vh-8rem)] flex rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 shadow-sm" data-testid="ai-assistant">
-      
-      {/* Sidebar toggle button (Mobile Only) */}
-      <button 
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="lg:hidden fixed bottom-28 right-6 z-55 w-12 h-12 rounded-full bg-brand-blue text-white grid place-items-center shadow-lg active:scale-95 transition-transform"
-      >
-        {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-      </button>
+  const handleActionClick = (to, actionLabel = "") => {
+    if (!to && !actionLabel) return;
+    const target = (to || "").trim();
 
-      {/* History Sidebar Panel */}
-      <aside className={`w-72 border-r border-slate-200 bg-white flex flex-col flex-shrink-0 transition-transform duration-300 z-50 lg:translate-x-0 lg:static fixed top-0 bottom-0 left-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
-        {/* Sidebar Header */}
-        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-          <h3 className="font-display font-bold text-sm text-brand-ink flex items-center gap-2">
-            <MessageSquare className="w-4 h-4 text-brand-blue" /> Chat History
-          </h3>
-          <button
-            onClick={() => startNewConversation()}
-            className="p-1.5 rounded-lg text-brand-blue bg-brand-blueLight hover:bg-brand-blue hover:text-white transition-colors cursor-pointer"
-            title="Start New Conversation"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
-        </div>
-        
-        {/* Conversations List */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
-          {conversations.map((conv) => {
-            const isActive = conv.id === activeSessionId;
-            return (
-              <div
-                key={conv.id}
-                onClick={() => {
-                  setActiveSessionId(conv.id);
-                  setSidebarOpen(false);
-                  setFailedRequest(null);
-                }}
-                className={`group flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all border ${
-                  isActive 
-                    ? "bg-brand-blueLight border-blue-200 text-brand-blue" 
-                    : "border-transparent text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <MessageSquare className={`w-4 h-4 flex-shrink-0 ${isActive ? "text-brand-blue" : "text-slate-400"}`} />
-                  <div className="min-w-0">
-                    <p className={`text-xs font-semibold truncate ${isActive ? "text-brand-ink" : "text-slate-700"}`}>
-                      {conv.title}
-                    </p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{conv.timestamp}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={(e) => handleDeleteConversation(conv.id, e)}
-                  className="opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 p-1 rounded transition-all cursor-pointer"
-                  title="Delete Conversation"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-        
-        {/* Sidebar Footer */}
-        <div className="p-4 border-t border-slate-100 bg-slate-50">
-          <button
-            onClick={handleClearActiveChat}
-            className="w-full flex items-center justify-center gap-2 py-2 border border-slate-200 text-slate-500 hover:bg-red-50 hover:text-red-500 hover:border-red-200 rounded-xl text-xs font-semibold transition-all cursor-pointer"
-          >
-            <Trash2 className="w-4 h-4" /> Clear Current Chat
-          </button>
-        </div>
-      </aside>
+    // 1. External URLs
+    if (target.startsWith("http://") || target.startsWith("https://")) {
+      window.open(target, "_blank", "noopener,noreferrer");
+      return;
+    }
 
-      {/* Main Chat Workspace */}
-      <main className="flex-1 flex flex-col min-w-0 bg-slate-50">
-        
-        {/* Glassmorphism Workspace Header */}
-        <header className="p-4 border-b border-slate-200 bg-white flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-brand-blue to-indigo-700 grid place-items-center text-white shadow-md">
-                <Bot className="w-5 h-5" />
-              </div>
-              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-brand-green ring-2 ring-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="font-display font-bold text-sm text-brand-ink">Saathi Chat</h2>
-                {activeConversation && activeConversation.messages.length > 1 && (
-                  <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
-                    Active Session
-                  </span>
-                )}
-              </div>
-              <p className="text-[10px] text-brand-green font-semibold flex items-center gap-1">
-                <ShieldCheck className="w-3.5 h-3.5" /> Verified Government AI Nodal Assistant
-              </p>
-            </div>
+    // 2. Documents / Profile
+    if (
+      target.startsWith("/profile/documents") ||
+      target.startsWith("/documents") ||
+      target === "/profile" ||
+      target.includes("document") ||
+      (actionLabel && actionLabel.toLowerCase().includes("document"))
+    ) {
+      nav("/profile");
+      return;
+    }
+
+    // 3. Eligibility Diagnostic
+    if (
+      target === "/eligibility" ||
+      target.startsWith("/eligibility/") ||
+      (actionLabel && actionLabel.toLowerCase().includes("eligibility") && !target.includes("scheme"))
+    ) {
+      nav("/eligibility");
+      return;
+    }
+
+    // 4. Scheme UUID or numeric ID detection
+    const uuidMatch = target.match(/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/i);
+    const numIdMatch = target.match(/\/schemes?\/(\d+)/i);
+    const schemeId = uuidMatch ? uuidMatch[1] : (numIdMatch ? numIdMatch[1] : null);
+
+    if (schemeId) {
+      const isGuideOrApply = 
+        target.includes("/guide") || 
+        target.includes("/apply") || 
+        (actionLabel && (actionLabel.toLowerCase().includes("apply") || actionLabel.toLowerCase().includes("how to")));
+      nav(`/scheme/${schemeId}${isGuideOrApply ? "?tab=process" : ""}`);
+      return;
+    }
+
+    // 5. Standard scheme or search directories
+    if (target === "/schemes" || target === "/browse" || target === "/search") {
+      nav("/search");
+      return;
+    }
+
+    if (target.startsWith("/search?") || target.startsWith("/schemes?")) {
+      nav(target.replace("/schemes?", "/search?"));
+      return;
+    }
+
+    // 6. Named scheme slug or keyword (e.g. /schemes/crop-insurance, /scheme/mudra)
+    const slugMatch = target.match(/\/schemes?\/(?:guide\/|apply\/)?([a-zA-Z0-9_-]+)/i);
+    if (slugMatch && !["guide", "apply", "search", "details"].includes(slugMatch[1].toLowerCase())) {
+      nav(`/search?q=${encodeURIComponent(slugMatch[1].replace(/[-_]/g, " "))}`);
+      return;
+    }
+
+    // 7. Keyword fallback from actionLabel
+    if (actionLabel) {
+      const cleanKeyword = actionLabel
+        .replace(/^(Learn How to Apply for|Check Eligibility for|Explore|Apply for|Support for)\s+/i, "")
+        .replace(/\s*\([^)]*\)/g, "")
+        .trim();
+      if (cleanKeyword.length > 2) {
+        nav(`/search?q=${encodeURIComponent(cleanKeyword)}`);
+        return;
+      }
+    }
+
+    nav(target || "/search");
+  };  return (
+    <div className="h-full flex-1 flex flex-col rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-xs min-h-0" data-testid="ai-assistant">
+      {/* Tricolor line */}
+      <div className="w-full h-1 flex flex-shrink-0 border-b border-slate-200">
+        <div className="h-full flex-1 bg-[#FF9933]" />
+        <div className="h-full flex-1 bg-slate-100" />
+        <div className="h-full flex-1 bg-[#138808]" />
+      </div>
+
+      <div className="flex-1 flex overflow-hidden min-h-0">
+        {/* Sidebar toggle button (Mobile Only) */}
+        <button 
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="lg:hidden fixed bottom-28 right-6 z-55 w-12 h-12 rounded-full bg-[#0b3b60] text-white grid place-items-center shadow-lg active:scale-95 transition-transform"
+        >
+          {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
+
+        {/* History Sidebar Panel */}
+        <aside className={`w-72 border-r border-slate-200 bg-white flex flex-col flex-shrink-0 transition-transform duration-300 z-50 lg:translate-x-0 lg:static fixed top-0 bottom-0 left-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+          {/* Sidebar Header */}
+          <div className="h-16 px-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-white">
+            <h3 className="font-display font-bold text-xs text-slate-800 flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-[#0b3b60]" /> Consultation History
+            </h3>
+            <button
+              onClick={() => startNewConversation()}
+              className="p-1.5 rounded-lg text-[#0b3b60] bg-blue-50 hover:bg-[#0b3b60] hover:text-white transition-colors cursor-pointer"
+              title="Start New Conversation"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
           </div>
           
-          <span className="inline-flex items-center gap-1.5 chip bg-brand-blueLight text-brand-blue text-[10px] font-bold">
-            <Sparkles className="w-3 h-3 text-brand-orange animate-pulse" /> Multilingual Support
-          </span>
-        </header>
+          {/* Conversations List */}
+          <div className="flex-1 overflow-y-auto p-2 space-y-1.5 min-h-0">
+            {conversations.map((conv) => {
+              const isActive = conv.id === activeSessionId;
+              return (
+                <div
+                  key={conv.id}
+                  onClick={() => {
+                    setActiveSessionId(conv.id);
+                    setSidebarOpen(false);
+                    setFailedRequest(null);
+                  }}
+                  className={`group flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-all border text-xs ${
+                    isActive 
+                      ? "bg-blue-50 border-blue-200 text-[#0b3b60] font-semibold" 
+                      : "border-transparent text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <MessageSquare className={`w-3.5 h-3.5 flex-shrink-0 ${isActive ? "text-[#0b3b60]" : "text-slate-400"}`} />
+                    <span className="truncate">{conv.title}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          
+          {/* Sidebar Footer */}
+          <div className="p-3 border-t border-slate-200 bg-slate-50 flex-shrink-0">
+            <button
+              onClick={handleClearActiveChat}
+              className="w-full flex items-center justify-center gap-2 py-2 border border-slate-200 text-slate-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Clear Session
+            </button>
+          </div>
+        </aside>
+
+        {/* Main Chat Workspace */}
+        <main className="flex-1 flex flex-col min-w-0 bg-slate-50">
+          
+          {/* Workspace Header */}
+          <header className="h-16 px-4 border-b border-slate-200 bg-white flex items-center justify-between flex-shrink-0 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="w-9 h-9 rounded-xl bg-[#0b3b60] grid place-items-center text-white shadow-xs">
+                  <Bot className="w-5 h-5" />
+                </div>
+                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="font-display font-bold text-sm text-slate-900 leading-tight">साथी AI / Saathi Assistant</h2>
+                  <span className="text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.2 rounded">
+                    भारत सरकार
+                  </span>
+                </div>
+                <p className="text-[10px] text-emerald-800 font-semibold flex items-center gap-1 mt-0.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> National Scheme & Direct Benefit Intelligence
+                </p>
+              </div>
+            </div>
+            
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-[#0b3b60] border border-blue-200">
+              <Sparkles className="w-3 h-3 text-amber-500" /> 22 Official Languages
+            </span>
+          </header>
 
         {/* Message Logs Area */}
-        <section className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0" data-testid="chat-messages">
+        <section className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4 min-h-0" data-testid="chat-messages">
           {messages.map((m, i) => {
             const isUser = m.role === "user";
             
@@ -653,12 +725,12 @@ export default function AIAssistant() {
                   </div>
                 )}
                 
-                <div className={`max-w-[80%] space-y-2 group relative`}>
+                <div className={`max-w-[85%] space-y-2 group relative min-w-0 break-words`}>
                   {/* Chat bubble card */}
                   <div className={`p-4 shadow-sm border ${
                     isUser 
-                      ? "bg-brand-blue text-white border-blue-600 rounded-3xl rounded-br-sm shadow-blue-100" 
-                      : "bg-white text-slate-800 border-slate-100 rounded-3xl rounded-bl-sm"
+                      ? "bg-[#0b3b60] text-white border-[#07253d] rounded-2xl rounded-br-xs" 
+                      : "bg-white text-slate-800 border-slate-200 rounded-2xl rounded-bl-xs"
                   }`}>
                     {/* Render Main Explanation */}
                     {isUser ? (
@@ -764,8 +836,8 @@ export default function AIAssistant() {
                       {m.recommendedActions.map((action, aIdx) => (
                         <button
                           key={aIdx}
-                          onClick={() => nav(action.to)}
-                          className="inline-flex items-center gap-1.5 px-4 h-9 rounded-xl bg-brand-blue text-white text-xs font-semibold hover:bg-blue-750 transition-colors shadow-sm cursor-pointer"
+                          onClick={() => handleActionClick(action.to, action.label)}
+                          className="inline-flex items-center gap-1.5 px-3.5 h-8.5 rounded-lg bg-[#0b3b60] text-white text-xs font-semibold hover:bg-[#07253d] transition-colors shadow-xs cursor-pointer"
                         >
                           {action.label} <ArrowUpRight className="w-3.5 h-3.5" />
                         </button>
@@ -825,7 +897,7 @@ export default function AIAssistant() {
         )}
 
         {/* Input Panel Form */}
-        <footer className="p-4 bg-white border-t border-slate-200">
+        <footer className="p-3 bg-white border-t border-slate-200 flex-shrink-0">
           <form
             onSubmit={(e) => { e.preventDefault(); handleSend(); }}
             className="flex items-center gap-2 border border-slate-200 rounded-2xl p-1 bg-slate-50 focus-within:bg-white focus-within:border-brand-blue focus-within:ring-2 focus-within:ring-blue-100 transition-all shadow-sm"
@@ -853,13 +925,14 @@ export default function AIAssistant() {
               type="submit"
               disabled={!input.trim() || typing}
               data-testid="chat-send"
-              className="w-11 h-11 rounded-xl bg-brand-blue text-white grid place-items-center hover:bg-blue-700 disabled:opacity-40 transition-colors flex-shrink-0 active:scale-95 cursor-pointer"
+              className="w-10 h-10 rounded-xl bg-[#0b3b60] hover:bg-[#07253d] text-white grid place-items-center disabled:opacity-40 transition-colors flex-shrink-0 active:scale-95 cursor-pointer shadow-xs"
             >
               {typing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </button>
           </form>
         </footer>
       </main>
+      </div>
     </div>
   );
 }

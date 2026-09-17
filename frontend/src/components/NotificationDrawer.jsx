@@ -136,34 +136,41 @@ export default function NotificationDrawer({ isOpen, onClose }) {
       {/* Drawer content panel */}
       <div className="relative w-full sm:w-112 max-w-md h-full bg-slate-50 flex flex-col shadow-2xl animate-slide-in-right z-50 border-l border-slate-100">
         
-        {/* Header */}
-        <div className="px-5 py-4 bg-white border-b border-slate-150 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <Bell className="w-5 h-5 text-brand-blue" />
-            <h2 className="font-display font-bold text-brand-ink text-base sm:text-lg">Notifications</h2>
+        {/* Header with Tricolor accent */}
+        <div className="h-1 w-full bg-gradient-to-r from-[#FF9933] via-white to-[#138808]" />
+        
+        <div className="px-5 py-3.5 bg-white border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-[#0b3b60]/10 text-[#0b3b60] flex items-center justify-center font-bold">
+              <Bell className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wider font-bold text-slate-500">भारत सरकार · Direct Alerts</div>
+              <h2 className="font-bold text-[#0b3b60] text-sm sm:text-base leading-tight">Official Citizen Notifications</h2>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors cursor-pointer"
+            className="p-1.5 rounded text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer border border-slate-200"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Global actions row */}
         {notifications.length > 0 && (
-          <div className="px-5 py-2.5 bg-white border-b border-slate-100 flex justify-between items-center flex-shrink-0">
+          <div className="px-5 py-2 bg-slate-100/80 border-b border-slate-200 flex justify-between items-center flex-shrink-0 text-xs">
             <button
               onClick={() => readAllMut.mutate()}
               disabled={readAllMut.isPending}
-              className="inline-flex items-center gap-1.5 text-[11px] font-bold text-brand-blue hover:text-blue-800 disabled:opacity-50 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#0b3b60] hover:underline disabled:opacity-50 transition-colors cursor-pointer"
             >
-              <CheckCheck className="w-3.5 h-3.5" /> Mark All as Read
+              <CheckCheck className="w-3.5 h-3.5 text-emerald-600" /> Mark All Read
             </button>
             <button
               onClick={() => clearAllMut.mutate()}
               disabled={clearAllMut.isPending}
-              className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-500 hover:text-rose-600 disabled:opacity-50 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 hover:underline disabled:opacity-50 transition-colors cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" /> Clear All
             </button>
@@ -171,15 +178,15 @@ export default function NotificationDrawer({ isOpen, onClose }) {
         )}
 
         {/* Filter Category Chips row */}
-        <div className="px-5 py-3 bg-white border-b border-slate-100 flex items-center gap-2 overflow-x-auto flex-shrink-0 no-scrollbar">
+        <div className="px-5 py-2.5 bg-white border-b border-slate-200 flex items-center gap-1.5 overflow-x-auto flex-shrink-0 no-scrollbar">
           {FILTER_ITEMS.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveFilter(item.id)}
-              className={`px-3 py-1 rounded-full text-[10px] font-bold tracking-tight uppercase border transition-all flex-shrink-0 cursor-pointer ${
+              className={`px-3 py-1 rounded text-[11px] font-semibold tracking-tight border transition-all flex-shrink-0 cursor-pointer ${
                 activeFilter === item.id
-                  ? "bg-brand-blue text-white border-brand-blue shadow-sm"
-                  : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-slate-700"
+                  ? "bg-[#0b3b60] text-white border-[#0b3b60] shadow-sm"
+                  : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
               }`}
             >
               {item.label}
@@ -217,7 +224,7 @@ export default function NotificationDrawer({ isOpen, onClose }) {
               </div>
               <button
                 onClick={() => refetch()}
-                className="inline-flex items-center gap-1 px-3 h-8 rounded-lg bg-brand-blue hover:bg-blue-750 text-white text-[10px] font-semibold transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1 px-3 h-8 rounded bg-[#0b3b60] hover:bg-[#07253d] text-white text-[11px] font-semibold transition-colors cursor-pointer"
               >
                 <RefreshCw className="w-3 h-3" /> Retry
               </button>
@@ -234,13 +241,13 @@ export default function NotificationDrawer({ isOpen, onClose }) {
                     <Bell className="w-8 h-8" />
                   </div>
                   <div>
-                    <h3 className="font-display font-bold text-brand-ink text-sm sm:text-base">No notifications yet.</h3>
-                    <p className="text-[11px] text-brand-muted mt-1">Updates on scheme deadlines and releases appear here.</p>
+                    <h3 className="font-bold text-slate-800 text-sm sm:text-base">No notifications yet.</h3>
+                    <p className="text-[11px] text-slate-500 mt-1">Direct official updates on scheme deadlines and releases appear here.</p>
                   </div>
                 </div>
               ) : (
                 /* List grid */
-                <div className="space-y-3.5">
+                <div className="space-y-3">
                   {filteredList.map((notif) => {
                     const theme = THEMES[notif.type] || THEMES["System Announcement"];
                     const IconComp = theme.icon;
@@ -250,47 +257,47 @@ export default function NotificationDrawer({ isOpen, onClose }) {
                       <div
                         key={notif.id}
                         data-testid={`notification-card-${notif.id}`}
-                        className={`bg-white border rounded-2xl p-4 flex gap-3 relative transition-all hover:shadow-md border-slate-100 group ${
-                          !notif.is_read ? "ring-1 ring-brand-blue/10 bg-blue-50/5 shadow-sm" : ""
+                        className={`bg-white border rounded-lg p-3.5 flex gap-3 relative transition-all hover:shadow border-slate-200 group ${
+                          !notif.is_read ? "border-l-4 border-l-[#0b3b60] bg-slate-50/50" : ""
                         }`}
                       >
                         {/* Unread dot indicator */}
                         {!notif.is_read && (
-                          <div className="absolute right-3.5 top-3.5 w-2 h-2 rounded-full bg-brand-blue" />
+                          <div className="absolute right-3.5 top-3.5 w-2 h-2 rounded-full bg-[#0b3b60]" />
                         )}
 
                         {/* Icon */}
-                        <div className={`w-9 h-9 rounded-xl border flex-shrink-0 flex items-center justify-center ${theme.color}`}>
-                          <IconComp className="w-4.5 h-4.5" />
+                        <div className={`w-8 h-8 rounded border flex-shrink-0 flex items-center justify-center ${theme.color}`}>
+                          <IconComp className="w-4 h-4" />
                         </div>
 
                         {/* Text Block */}
-                        <div className="flex-1 space-y-1.5 min-w-0 pr-4">
+                        <div className="flex-1 space-y-1 min-w-0 pr-4">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">
                               {notif.created_at}
                             </span>
-                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider border ${priorityColor}`}>
+                            <span className={`px-1.5 py-0.2 rounded text-[8px] font-bold uppercase tracking-wider border ${priorityColor}`}>
                               {notif.priority}
                             </span>
                           </div>
                           
-                          <h4 className="font-display font-bold text-brand-ink text-xs sm:text-sm leading-tight">
+                          <h4 className="font-bold text-slate-900 text-xs sm:text-sm leading-tight">
                             {notif.title}
                           </h4>
                           
-                          <p className="text-[11px] text-brand-muted leading-relaxed break-words">
+                          <p className="text-[11px] text-slate-600 leading-relaxed break-words">
                             {notif.description}
                           </p>
 
-                          <div className="flex items-center gap-3 pt-2">
+                          <div className="flex items-center gap-3 pt-1.5">
                             {/* Read trigger */}
                             {!notif.is_read && (
                               <button
                                 onClick={() => readMut.mutate(notif.id)}
-                                className="inline-flex items-center gap-0.5 text-[10px] font-bold text-brand-blue hover:text-blue-800 transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-[#0b3b60] hover:underline transition-colors cursor-pointer"
                               >
-                                <Check className="w-3 h-3" /> Mark Read
+                                <Check className="w-3 h-3 text-emerald-600" /> Mark Read
                               </button>
                             )}
                             

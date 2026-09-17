@@ -59,6 +59,20 @@ def clean_and_parse_json(raw_text: str) -> Dict[str, Any]:
                 "failedChecks": list(report.get("failedChecks", []))
             }
             
+        cleaned_actions = []
+        for action in formatted_response["recommendedActions"]:
+            if isinstance(action, dict):
+                to_val = str(action.get("to", "")).strip()
+                label_val = str(action.get("label", "")).strip()
+                # Normalize /scheme/guide/<id> or /schemes/<id> to /scheme/<id>
+                guide_match = re.search(r"/(?:scheme|schemes)/(?:guide|apply)/([0-9a-fA-F-]+)", to_val)
+                if guide_match:
+                    to_val = f"/scheme/{guide_match.group(1)}"
+                elif to_val.startswith("/schemes/"):
+                    to_val = to_val.replace("/schemes/", "/scheme/")
+                cleaned_actions.append({"label": label_val, "to": to_val})
+        formatted_response["recommendedActions"] = cleaned_actions
+            
         return formatted_response
         
     except Exception as e:

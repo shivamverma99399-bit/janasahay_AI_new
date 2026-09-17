@@ -69,6 +69,13 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-brand-surface/50">
+      {/* Official Indian National Tricolor Ribbon */}
+      <div className="fixed top-0 left-0 right-0 h-1 z-50 flex pointer-events-none">
+        <div className="h-full flex-1 bg-[#FF9933]" />
+        <div className="h-full flex-1 bg-white" />
+        <div className="h-full flex-1 bg-[#138808]" />
+      </div>
+
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex fixed left-0 top-0 h-screen w-72 bg-white border-r border-slate-100 flex-col z-30" data-testid="desktop-sidebar">
         <div className="px-7 py-6 flex items-center gap-3">
@@ -239,8 +246,21 @@ export default function Layout() {
       </header>
 
       {/* Main */}
-      <main className="lg:pl-72 pb-24 lg:pb-12" data-testid="main-content">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 py-6 lg:py-10">
+      <main
+        className={`lg:pl-72 ${
+          location.pathname.startsWith("/ai")
+            ? "h-[calc(100vh-4rem)] overflow-hidden flex flex-col"
+            : "pb-24 lg:pb-12"
+        }`}
+        data-testid="main-content"
+      >
+        <div
+          className={`${
+            location.pathname.startsWith("/ai")
+              ? "h-full w-full p-2 sm:p-3 lg:p-4 min-h-0 flex flex-col"
+              : "mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 py-6 lg:py-10"
+          }`}
+        >
           <Outlet />
         </div>
       </main>
@@ -292,14 +312,17 @@ export default function Layout() {
 export function Logo({ compact = false }) {
   return (
     <div className="flex items-center gap-2.5" data-testid="logo">
-      <div className="relative w-9 h-9 rounded-xl bg-gradient-to-br from-brand-blue to-blue-700 grid place-items-center shadow-sm">
-        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-brand-orange" />
+      <div className="relative w-9 h-9 rounded-xl bg-[#0b3b60] flex items-center justify-center shadow-sm border border-amber-400/30">
+        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#FF9933] ring-1 ring-white" />
         <span className="font-display text-white font-bold text-lg leading-none">जन</span>
       </div>
       {!compact && (
         <div className="leading-tight">
-          <p className="font-display font-bold text-brand-ink tracking-tight">JanSahay</p>
-          <p className="text-[10px] uppercase tracking-widest text-brand-muted font-semibold">Govt. of India Service</p>
+          <div className="flex items-center gap-1.5">
+            <p className="font-display font-bold text-slate-900 tracking-tight text-base">JanSahay</p>
+            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200">PORTAL</span>
+          </div>
+          <p className="text-[10px] tracking-wider text-slate-500 font-semibold">भारत सरकार · Govt. of India</p>
         </div>
       )}
     </div>

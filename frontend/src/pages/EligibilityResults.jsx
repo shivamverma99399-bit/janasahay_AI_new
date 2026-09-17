@@ -3,7 +3,11 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useApp } from "@/context/AppContext";
 import { aiService } from "@/services/aiService";
-import { CheckCircle2, AlertTriangle, XCircle, Sparkles, ArrowLeft, RefreshCw, AlertCircle, Loader2 } from "lucide-react";
+import {
+  CheckCircle2, AlertTriangle, XCircle, Sparkles, ArrowLeft,
+  RefreshCw, AlertCircle, Loader2, ShieldCheck, Landmark,
+  IndianRupee, ChevronRight
+} from "lucide-react";
 import SchemeCard from "@/components/SchemeCard";
 
 export default function EligibilityResults() {
@@ -51,8 +55,8 @@ export default function EligibilityResults() {
   if (isLoading) {
     return (
       <div className="py-32 flex flex-col items-center justify-center gap-4">
-        <Loader2 className="w-10 h-10 text-brand-blue animate-spin" />
-        <p className="text-sm font-semibold text-brand-muted">Running matchmaker evaluation algorithms...</p>
+        <Loader2 className="w-8 h-8 text-[#0b3b60] animate-spin" />
+        <p className="text-xs font-semibold text-slate-500">Evaluating socio-economic parameters against Union Ministry guidelines...</p>
       </div>
     );
   }
@@ -60,122 +64,142 @@ export default function EligibilityResults() {
   if (isError || stateError) {
     const errorDetails = error?.response?.data?.detail || error?.message || (stateError && String(stateError)) || "Unknown integration error";
     return (
-      <div className="py-20 max-w-xl mx-auto space-y-6 text-center animate-fade-in-up">
-        <div className="w-16 h-16 rounded-full bg-rose-50 text-rose-600 grid place-items-center mx-auto">
-          <AlertCircle className="w-8 h-8" />
+      <div className="py-20 max-w-xl mx-auto space-y-5 text-center bg-white border border-slate-200 p-8 rounded-2xl animate-fade-in-up">
+        <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-700 grid place-items-center mx-auto border border-rose-200">
+          <AlertCircle className="w-6 h-6" />
         </div>
-        <div className="space-y-2">
-          <h1 className="font-display text-2xl font-bold text-slate-800">Connection Interrupted</h1>
-          <p className="text-sm text-brand-muted leading-relaxed">
-            The eligibility matching service encountered an error processing your request:
+        <div className="space-y-1.5">
+          <h1 className="font-display text-xl font-bold text-slate-900">Diagnostic Interrupted</h1>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            The national eligibility matching server encountered an issue processing your parameters:
           </p>
-          <div className="p-4 rounded-xl bg-rose-50/50 border border-rose-100 text-left text-xs font-mono text-rose-700 max-h-40 overflow-y-auto">
+          <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-left text-xs font-mono text-rose-700 max-h-36 overflow-y-auto">
             {errorDetails}
           </div>
         </div>
         <button
           onClick={() => nav("/eligibility")}
-          className="inline-flex items-center gap-2 px-6 h-11 rounded-xl bg-brand-blue text-white font-medium hover:bg-blue-700 transition-colors shadow-sm"
+          className="inline-flex items-center gap-2 px-5 h-10 rounded-lg bg-[#0b3b60] text-white text-xs font-semibold hover:bg-[#07253d] transition-colors shadow-xs"
         >
-          <RefreshCw className="w-4 h-4" /> Retake Questionnaire
+          <RefreshCw className="w-3.5 h-3.5" /> Retake Diagnostic
         </button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-10 animate-fade-in-up" data-testid="eligibility-results">
+    <div className="space-y-8 animate-fade-in-up" data-testid="eligibility-results">
       
       {/* Header Back Button */}
-      <button onClick={() => nav("/eligibility")} className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-muted hover:text-brand-ink transition-colors">
-        <ArrowLeft className="w-4 h-4" /> Restart Verification
+      <button onClick={() => nav("/eligibility")} className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors cursor-pointer">
+        <ArrowLeft className="w-3.5 h-3.5" /> Retake Diagnostic / संशोधित करें
       </button>
 
-      {/* Success Summary Hero Banner */}
-      <section className="card-soft p-8 sm:p-12 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 border border-emerald-100 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-start gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-brand-green text-white grid place-items-center shadow-lg shadow-emerald-500/20 flex-shrink-0">
-              <CheckCircle2 className="w-8 h-8" />
-            </div>
-            <div className="space-y-1">
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
-                <Sparkles className="w-3 h-3 text-brand-orange animate-pulse" /> Saathi Assessment Verified
+      {/* Official Assessment Summary Banner */}
+      <section className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+        <div className="w-full h-1.5 flex border-b border-slate-200">
+          <div className="h-full flex-1 bg-[#FF9933]" />
+          <div className="h-full flex-1 bg-slate-100" />
+          <div className="h-full flex-1 bg-[#138808]" />
+        </div>
+
+        <div className="p-6 sm:p-8 space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-150 pb-3 flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-900">भारत सरकार</span>
+              <span className="text-slate-300">|</span>
+              <span className="text-xs font-bold text-slate-700 uppercase">Government of India</span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                पात्रता सत्यापन रिपोर्ट
               </span>
-              <h1 className="font-display text-2xl sm:text-3xl font-bold text-brand-ink tracking-tight pt-1">
-                You match with <span className="text-brand-green font-extrabold">{matched.length} schemes</span>
-              </h1>
-              <p className="text-xs text-brand-muted">
-                Evaluated against community demographics and income parameters.
-              </p>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <span>Direct Benefit Transfer (DBT) Assessed</span>
             </div>
           </div>
-          <div className="text-left md:text-right border-t md:border-t-0 pt-4 md:pt-0 flex-shrink-0">
-            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Estimated annual support</p>
-            <p className="font-display text-2xl font-extrabold text-brand-green mt-1">{estimated}</p>
+
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 grid place-items-center flex-shrink-0">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h1 className="font-display text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                  You qualify for <span className="text-emerald-700">{matched.length} Government Schemes</span>
+                </h1>
+                <p className="text-xs text-slate-500">
+                  Evaluated against official community demographics, family income brackets, and land records under Union & State Ministry rules.
+                </p>
+              </div>
+            </div>
+
+            <div className="border-t md:border-t-0 pt-3 md:pt-0 flex-shrink-0 text-left md:text-right">
+              <p className="text-[10px] uppercase font-bold text-slate-400">Total Eligibility Summary</p>
+              <p className="font-display text-lg font-bold text-emerald-700 mt-0.5">{estimated}</p>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Matched Schemes List */}
+      {/* Matched Schemes Section */}
       <section className="space-y-4">
-        <div className="border-b pb-2">
-          <h2 className="font-display text-xl font-bold text-brand-green flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5" /> Matched Schemes ({matched.length})
+        <div className="border-b border-slate-200 pb-2">
+          <h2 className="font-display text-base font-bold text-slate-900 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            <span>Eligible Schemes / पात्र योजनाएं ({matched.length})</span>
           </h2>
-          <p className="text-xs text-brand-muted">You qualify for the following benefits. Direct external portal links are open below.</p>
+          <p className="text-xs text-slate-500 mt-0.5">You meet all statutory requirements. Proceed to official application portals below.</p>
         </div>
+
         {matched.length > 0 ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {matched.map((s, idx) => (
               <div key={s.id || idx} className="relative">
                 <SchemeCard scheme={s} />
-                <div className="absolute top-4 right-12 text-xs font-bold text-brand-green bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 pointer-events-none">
-                  {s.match_score}% Match
-                </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="p-8 text-center border border-dashed rounded-2xl text-brand-muted text-sm bg-slate-50/50">
-            No exact matching schemes found.
+          <div className="p-8 text-center border border-dashed rounded-xl text-slate-500 text-xs bg-slate-50">
+            No exact matching schemes found for your current parameter set.
           </div>
         )}
       </section>
 
-      {/* Partially Matched List */}
-      <section className="space-y-4">
-        <div className="border-b pb-2">
-          <h2 className="font-display text-xl font-bold text-brand-orange flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5" /> Partially Matched ({partial.length})
-          </h2>
-          <p className="text-xs text-brand-muted">You are close to qualifying. Review missing documentation details below.</p>
-        </div>
-        {partial.length > 0 ? (
+      {/* Partially Matched Section */}
+      {partial.length > 0 && (
+        <section className="space-y-4">
+          <div className="border-b border-slate-200 pb-2">
+            <h2 className="font-display text-base font-bold text-slate-900 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600" />
+              <span>Conditionally Eligible / आंशिक पात्रता ({partial.length})</span>
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">You are close to qualifying. Review missing document certificates or criteria.</p>
+          </div>
+
           <div className="space-y-3">
             {partial.map((s, idx) => (
-              <div key={s.id || idx} className="card-soft p-5 border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white shadow-sm">
+              <div key={s.id || idx} className="p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white shadow-xs">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-orange-50 text-brand-orange grid place-items-center flex-shrink-0 mt-0.5">
-                    <AlertTriangle className="w-5 h-5" />
+                  <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 grid place-items-center flex-shrink-0 mt-0.5 border border-amber-200">
+                    <AlertTriangle className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="font-display font-bold text-brand-ink text-sm">{s.title || s.scheme_name}</h3>
-                    {/* Failed Checks */}
+                    <h3 className="font-display font-bold text-slate-900 text-sm">{s.title || s.scheme_name}</h3>
                     {s.failed_checks && s.failed_checks.length > 0 && (
-                      <div className="mt-1 space-y-1">
+                      <div className="mt-1 space-y-0.5">
                         {s.failed_checks.map((fc, i) => (
-                          <p key={i} className="text-xs text-rose-600 font-medium flex items-center gap-1">
-                            ⚠ {fc}
+                          <p key={i} className="text-xs text-rose-700 font-medium flex items-center gap-1">
+                            ⚠ Pending Requirement: {fc}
                           </p>
                         ))}
                       </div>
                     )}
-                    {/* Met Conditions */}
                     {s.reasons && s.reasons.length > 0 && (
                       <div className="mt-1.5 flex flex-wrap gap-1">
                         {s.reasons.map((r, i) => (
-                          <span key={i} className="inline-flex items-center gap-0.5 text-[10px] font-medium bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded">
+                          <span key={i} className="inline-flex items-center text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded">
                             ✓ {r}
                           </span>
                         ))}
@@ -185,83 +209,79 @@ export default function EligibilityResults() {
                 </div>
                 <button
                   onClick={() => nav(`/scheme/${s.id}`)}
-                  className="px-4 h-9 rounded-lg border text-xs font-semibold text-brand-orange border-brand-orange/20 hover:bg-orange-50 transition-colors self-start sm:self-center"
+                  className="px-3.5 h-8 rounded-lg border border-slate-300 text-xs font-semibold text-slate-800 hover:bg-slate-50 transition-colors self-start sm:self-center cursor-pointer"
                 >
-                  View Details
+                  View Criteria
                 </button>
               </div>
             ))}
           </div>
-        ) : (
-          <div className="p-8 text-center border border-dashed rounded-2xl text-brand-muted text-sm bg-slate-50/50">
-            No partially matched schemes.
-          </div>
-        )}
-      </section>
+        </section>
+      )}
 
-      {/* Not Eligible List */}
+      {/* Excluded Schemes Section */}
       <section className="space-y-4">
-        <div className="border-b pb-2 flex justify-between items-center">
+        <div className="border-b border-slate-200 pb-2 flex justify-between items-center">
           <div>
-            <h2 className="font-display text-xl font-bold text-slate-500 flex items-center gap-2">
-              <XCircle className="w-5 h-5 text-slate-400" /> Excluded Schemes ({notEligible.length})
+            <h2 className="font-display text-base font-bold text-slate-700 flex items-center gap-2">
+              <XCircle className="w-4 h-4 text-slate-400" />
+              <span>Ineligible Schemes ({notEligible.length})</span>
             </h2>
-            <p className="text-xs text-brand-muted">Schemes where community eligibility caps exceed current parameters.</p>
+            <p className="text-xs text-slate-500 mt-0.5">Schemes where demographic or income criteria exceed current statutory limits.</p>
           </div>
           {notEligible.length > 0 && (
             <button
               onClick={() => setShowExcluded(!showExcluded)}
               data-testid="toggle-excluded-btn"
-              className="text-xs font-semibold text-brand-blue hover:underline bg-brand-blueLight px-3 py-1.5 rounded-lg"
+              className="text-xs font-bold text-[#0b3b60] hover:underline bg-blue-50 border border-blue-200 px-3 py-1 rounded-lg cursor-pointer"
             >
               {showExcluded ? "Hide Excluded" : "Show Excluded"}
             </button>
           )}
         </div>
-        {showExcluded && notEligible.length > 0 ? (
-          <div className="card-soft divide-y divide-slate-100 border border-slate-100 bg-white shadow-sm animate-fade-in">
+
+        {showExcluded && notEligible.length > 0 && (
+          <div className="rounded-xl divide-y divide-slate-200 border border-slate-200 bg-white shadow-xs animate-fade-in">
             {notEligible.map((s, idx) => (
-              <div key={s.id || idx} className="p-5 flex items-start justify-between gap-4">
+              <div key={s.id || idx} className="p-4 flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-400 grid place-items-center flex-shrink-0 mt-0.5">
-                    <XCircle className="w-5 h-5" />
+                  <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 grid place-items-center flex-shrink-0 mt-0.5">
+                    <XCircle className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="font-display font-bold text-brand-ink text-sm">{s.title || s.scheme_name}</h3>
-                    {/* Failed Checks */}
+                    <h3 className="font-display font-bold text-slate-900 text-sm">{s.title || s.scheme_name}</h3>
                     {s.failed_checks && s.failed_checks.length > 0 && (
-                      <div className="mt-1 space-y-1">
+                      <div className="mt-1 space-y-0.5">
                         {s.failed_checks.map((fc, i) => (
-                          <p key={i} className="text-xs text-rose-600 font-medium">
-                            ✗ {fc}
+                          <p key={i} className="text-xs text-rose-700 font-medium">
+                            ✗ Excluded: {fc}
                           </p>
                         ))}
                       </div>
                     )}
                   </div>
                 </div>
-                <span className="text-xs text-slate-400 font-bold uppercase mt-1">{s.state || "All India"}</span>
+                <span className="text-xs text-slate-500 font-bold uppercase">{s.state || "All India"}</span>
               </div>
             ))}
-          </div>
-        ) : !showExcluded && notEligible.length > 0 ? (
-          <div className="p-6 text-center text-xs text-brand-muted bg-slate-50/50 rounded-xl border border-dashed">
-            {notEligible.length} schemes excluded based on your profile details. Click "Show Excluded" to view.
-          </div>
-        ) : (
-          <div className="p-8 text-center border border-dashed rounded-2xl text-brand-muted text-sm bg-slate-50/50">
-            No excluded schemes.
           </div>
         )}
       </section>
 
-      {/* Lower Recovery Actions */}
-      <div className="flex flex-wrap gap-3 justify-center pt-8 border-t">
-        <button onClick={() => nav("/eligibility")} className="h-11 px-6 rounded-xl border-2 border-slate-200 hover:border-brand-blue hover:text-brand-blue font-semibold text-xs transition-colors flex items-center gap-2 active:scale-95">
-          <RefreshCw className="w-4 h-4" /> Retake Diagnostic Check
+      {/* Recovery Actions */}
+      <div className="flex flex-wrap gap-3 justify-center pt-6 border-t border-slate-200">
+        <button
+          onClick={() => nav("/eligibility")}
+          className="h-10 px-5 rounded-lg border border-slate-300 hover:bg-slate-50 font-semibold text-xs text-slate-800 transition-colors flex items-center gap-2 cursor-pointer"
+        >
+          <RefreshCw className="w-3.5 h-3.5" /> Retake Diagnostic
         </button>
-        <button onClick={() => nav("/ai")} className="h-11 px-6 rounded-xl bg-brand-blue hover:bg-blue-700 text-white font-semibold text-xs transition-colors flex items-center gap-2 shadow-md active:scale-95">
-          <Sparkles className="w-4 h-4 text-brand-orange animate-pulse" /> Query Saathi AI Assistant
+        <button
+          onClick={() => nav("/ai")}
+          className="h-10 px-5 rounded-lg bg-[#0b3b60] hover:bg-[#07253d] text-white font-semibold text-xs transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+          <span>Consult Saathi AI on Schemes</span>
         </button>
       </div>
 

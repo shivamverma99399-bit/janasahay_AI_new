@@ -34,8 +34,8 @@ JSON Schema:
   ],
   "recommendedActions": [
     {
-      "label": "Action label (e.g. Set Up Profile, View Eligibility Breakdown)",
-      "to": "Destination route (e.g. /profile, /eligibility/results)"
+      "label": "Action label (e.g. Learn How to Apply, Explore Scheme, Check Eligibility)",
+      "to": "Destination route: For a specific scheme use /scheme/{scheme_id} (e.g. /scheme/88f0ee43-2f2b-4325-8891-10889bf17870), or general routes /search, /profile, /eligibility, or official https:// link"
     }
   ],
   "confidence": float between 0.0 and 1.0 representing confidence in the response,

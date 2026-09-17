@@ -3,7 +3,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { User, Shield, Briefcase, Calendar, MapPin, IndianRupee, GraduationCap, Users, Loader2, LogOut, Sparkles } from "lucide-react";
+import {
+  User, Shield, Briefcase, Calendar, MapPin, IndianRupee,
+  GraduationCap, Users, Loader2, LogOut, Sparkles, Landmark,
+  ShieldCheck, FileText, CheckCircle2, QrCode
+} from "lucide-react";
 import { profileService } from "@/services/profileService";
 import { useApp } from "@/context/AppContext";
 import { Label } from "@/components/ui/label";
@@ -98,26 +102,17 @@ export default function Profile() {
 
   const handleDocumentToggle = (doc) => {
     setCheckedDocs((prev) => {
-      const next = prev.includes(doc) ? prev.filter((d) => d !== doc) : [...prev, doc];
-      localStorage.setItem(userId ? `js_user_documents_${userId}` : "js_user_documents_guest", JSON.stringify(next));
-      toast.success(`${doc} check status updated!`);
-      return next;
+      const exists = prev.includes(doc);
+      const updated = exists ? prev.filter((d) => d !== doc) : [...prev, doc];
+      localStorage.setItem(userId ? `js_user_documents_${userId}` : "js_user_documents_guest", JSON.stringify(updated));
+      return updated;
     });
   };
 
-  // Load demographic preferences from Supabase backend
   const { data: profile, isLoading } = useQuery({
     queryKey: ["profilePreferences", userId],
-    queryFn: async () => {
-      try {
-        if (!userId) return null;
-        return await profileService.getProfile(userId);
-      } catch (err) {
-        // Return null if endpoint fails, enabling fallback default blank form
-        return null;
-      }
-    },
-    enabled: !!userId
+    queryFn: () => profileService.getProfile(userId),
+    enabled: !!userId,
   });
 
   const {
@@ -166,11 +161,11 @@ export default function Profile() {
       if (res && res.user_id) {
         setUserId(res.user_id);
       }
-      toast.success("Demographic preferences updated successfully!");
+      toast.success("Citizen preferences updated successfully!");
       queryClient.invalidateQueries({ queryKey: ["profilePreferences"] });
     },
     onError: () => {
-      toast.error("Failed to save preferences. Server database offline.");
+      toast.error("Failed to save preferences. Central database unreachable.");
     }
   });
 
@@ -179,7 +174,6 @@ export default function Profile() {
       saveMutation.mutate(data);
     } else {
       localStorage.setItem("js_profile_guest", JSON.stringify(data));
-      // Populate guest extra demographics so eligibility engine receives it correctly
       const guestExtra = {
         category: data.category,
         disabilityStatus: data.disabilityStatus,
@@ -188,164 +182,213 @@ export default function Profile() {
       };
       localStorage.setItem(`js_profile_extra_guest`, JSON.stringify(guestExtra));
       setGuestProfile(data);
-      toast.success("Guest preferences saved locally!");
+      toast.success("Demographic parameters saved locally!");
     }
   };
 
   if (isLoading) {
     return (
       <div className="py-32 flex flex-col items-center justify-center gap-3">
-        <Loader2 className="w-10 h-10 text-brand-blue animate-spin" />
-        <p className="text-sm font-semibold text-brand-muted">Loading preferences from server Supabase...</p>
+        <Loader2 className="w-8 h-8 text-[#0b3b60] animate-spin" />
+        <p className="text-xs font-semibold text-slate-500">Querying National Citizen Directory...</p>
       </div>
     );
   }
 
+  const citizenName = profile?.name || guestProfile?.name || "Citizen of India";
+  const citizenState = profile?.state || guestProfile?.state || "All India";
+
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-fade-in-up" data-testid="profile-page">
+    <div className="max-w-4xl mx-auto space-y-6 animate-fade-in-up" data-testid="profile-page">
       
-      {/* Title */}
-      <div>
-        <p className="text-xs uppercase tracking-widest font-semibold text-brand-blue">Citizen File</p>
-        <h1 className="font-display text-3xl sm:text-4xl font-bold text-brand-ink tracking-tight mt-1">Profile & Preferences</h1>
-        <p className="text-brand-muted mt-1">Submit demographic indicators to configure matched AI matching recommendations. Data is stored securely on Supabase.</p>
-      </div>
+      {/* Official Government Header */}
+      <section className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+        <div className="w-full h-1.5 flex border-b border-slate-200">
+          <div className="h-full flex-1 bg-[#FF9933]" />
+          <div className="h-full flex-1 bg-slate-100" />
+          <div className="h-full flex-1 bg-[#138808]" />
+        </div>
 
-      <div className="grid md:grid-cols-3 gap-8">
-        
-        {/* Left Column Info */}
-        <div className="space-y-4 md:col-span-1">
-          <div className="card-soft p-6 space-y-6 border border-slate-100 bg-slate-50/50">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-brand-blueLight text-brand-blue grid place-items-center flex-shrink-0 shadow-sm">
-                <User className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-display font-bold text-sm text-brand-ink">Identity Profile</h3>
-                <p className="text-[10px] text-slate-400 font-medium">Independent Citizen Node</p>
-              </div>
-            </div>
+        <div className="p-6 sm:p-7 space-y-3">
+          <div className="flex items-center gap-2 flex-wrap text-xs font-bold text-slate-700">
+            <span className="text-slate-900">भारत सरकार</span>
+            <span className="text-slate-300">|</span>
+            <span className="uppercase text-slate-700">Government of India</span>
+            <span className="bg-blue-50 text-[#0b3b60] border border-blue-200 px-2 py-0.5 rounded text-[10px]">
+              नागरिक पहचान एवं प्रोफ़ाइल
+            </span>
+          </div>
 
-            <p className="text-xs text-brand-muted leading-relaxed">
-              These criteria will be used during scheme querying to match eligibility guidelines set by the Government of India.
+          <div>
+            <h1 className="font-display text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+              Citizen Profile & Demographic Record
+            </h1>
+            <p className="text-xs sm:text-sm font-semibold text-slate-500 mt-0.5">
+              नागरिक विवरण, दस्तावेज एवं पात्रता प्राथमिकताएं
             </p>
+            <p className="text-xs sm:text-sm text-slate-600 max-w-2xl mt-1.5 leading-relaxed">
+              Maintain your demographic indicators to enable automated AI evaluation across central ministries and state welfare schemes.
+            </p>
+          </div>
+        </div>
+      </section>
 
-            <div className="flex items-center gap-2 border-t pt-4 text-xs font-semibold text-emerald-700 bg-emerald-50/30 p-2.5 rounded-lg border-emerald-100">
-              <Shield className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-              Direct Supabase Database Encryption
+      <div className="grid md:grid-cols-3 gap-6">
+        
+        {/* Left Column: Official Citizen Identity Card */}
+        <div className="space-y-4 md:col-span-1">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+            {/* Card Tricolor Accent */}
+            <div className="w-full h-1 flex">
+              <div className="h-full flex-1 bg-[#FF9933]" />
+              <div className="h-full flex-1 bg-slate-100" />
+              <div className="h-full flex-1 bg-[#138808]" />
             </div>
 
-            {/* Logout shortcut */}
-            {userId && (
-              <div className="border-t pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUserId(null);
-                    toast.success("Successfully logged out.");
-                    nav("/signin");
-                  }}
-                  className="w-full h-10 rounded-lg border border-rose-200 text-rose-600 bg-white hover:bg-rose-50 text-xs font-bold transition-all flex items-center justify-center gap-2"
-                  data-testid="profile-logout-btn"
-                >
-                  <LogOut className="w-4 h-4" /> Log Out Citizen ID
-                </button>
+            <div className="p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-150 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-[#0b3b60] text-white flex items-center justify-center font-bold text-sm">
+                    जन
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900 leading-none">JanSahay ID</p>
+                    <p className="text-[10px] text-slate-400 font-semibold">National Portal Pass</p>
+                  </div>
+                </div>
+                <span className="text-[9px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded">
+                  {userId ? "VERIFIED" : "GUEST"}
+                </span>
               </div>
-            )}
+
+              <div className="space-y-1">
+                <p className="text-xs text-slate-400 uppercase font-semibold">Citizen Name</p>
+                <p className="text-sm font-bold text-slate-900">{citizenName}</p>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-xs text-slate-400 uppercase font-semibold">Jurisdiction / State</p>
+                <p className="text-xs font-semibold text-slate-800">{citizenState}</p>
+              </div>
+
+              {userId && (
+                <div className="space-y-1">
+                  <p className="text-xs text-slate-400 uppercase font-semibold">Citizen Reference UID</p>
+                  <p className="text-xs font-mono font-bold text-slate-700 truncate">{userId}</p>
+                </div>
+              )}
+
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-800 bg-emerald-50 p-2 rounded-lg border border-emerald-200">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                <span>DBT & DigiLocker Ready</span>
+              </div>
+
+              {/* Logout button */}
+              {userId && (
+                <div className="border-t border-slate-150 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUserId(null);
+                      toast.success("Successfully logged out.");
+                      nav("/signin");
+                    }}
+                    className="w-full h-9 rounded-lg border border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                    data-testid="profile-logout-btn"
+                  >
+                    <LogOut className="w-3.5 h-3.5" /> Log Out Citizen ID
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Right Column Form or Guest Nudge */}
+        {/* Right Column: Form or Guest Options */}
         {!userId && !showGuestProfile ? (
           <div className="md:col-span-2 space-y-6">
-            <div className="card-soft p-8 border border-slate-150 bg-white flex flex-col items-center text-center space-y-5 shadow-sm rounded-2xl">
-              <div className="w-12 h-12 rounded-full bg-brand-blueLight text-brand-blue grid place-items-center">
-                <Shield className="w-6 h-6 animate-pulse" />
+            <div className="bg-white p-8 border border-slate-200 rounded-xl flex flex-col items-center text-center space-y-4 shadow-xs">
+              <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#0b3b60] grid place-items-center border border-blue-200">
+                <Landmark className="w-6 h-6" />
               </div>
-              <div className="space-y-2 max-w-sm">
-                <h3 className="font-display font-bold text-lg text-brand-ink">Configure Identity Profile</h3>
-                <p className="text-xs text-brand-muted leading-relaxed">
-                  Sign in to save your profile, documents, and receive personalized recommendations.
+              <div className="space-y-1 max-w-sm">
+                <h3 className="font-display font-bold text-base text-slate-900">National Citizen Authentication</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Sign in with your Citizen ID or register a new identity profile to securely sync welfare entitlements.
                 </p>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs pt-2">
+              <div className="flex flex-col sm:flex-row gap-2.5 w-full max-w-xs pt-2">
                 <button
                   onClick={() => nav("/signin")}
-                  className="flex-1 h-10 rounded-lg bg-brand-blue hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-colors"
+                  className="flex-1 h-10 rounded-lg bg-[#0b3b60] hover:bg-[#07253d] text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
                 >
-                  Sign In
+                  Citizen Sign In
                 </button>
                 <button
                   onClick={() => nav("/create-id")}
-                  className="flex-1 h-10 rounded-lg border border-brand-blue text-brand-blue bg-white hover:bg-brand-blueLight text-xs font-semibold transition-colors flex items-center justify-center gap-1"
+                  className="flex-1 h-10 rounded-lg border border-[#0b3b60] text-[#0b3b60] bg-white hover:bg-blue-50 text-xs font-semibold transition-colors cursor-pointer"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-brand-orange animate-spin" style={{ animationDuration: "3s" }} /> Create ID
+                  Create Citizen ID
                 </button>
               </div>
 
               <button
                 onClick={() => setShowGuestProfile(true)}
-                className="text-xs font-bold text-slate-500 hover:text-brand-ink hover:underline pt-2"
+                className="text-xs font-bold text-slate-500 hover:text-slate-900 hover:underline pt-1 cursor-pointer"
                 data-testid="continue-as-guest"
               >
-                Continue as Guest
+                Continue in Guest Mode
               </button>
             </div>
           </div>
         ) : (
           <div className="md:col-span-2 space-y-6">
             {!userId && (
-              <div className="p-4 rounded-xl bg-amber-50/50 border border-amber-100 flex flex-col sm:flex-row items-center justify-between gap-3">
-                <p className="text-[11px] text-amber-850">
-                  ⚠️ You are in <strong>Guest Mode</strong>. Preferences are saved locally on this browser. Sign in to save across devices.
-                </p>
-                <div className="flex gap-2">
-                  <button onClick={() => nav("/signin")} className="text-[11px] font-bold text-brand-blue hover:underline whitespace-nowrap">
+              <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-amber-900">
+                <span>⚠️ <strong>Guest Mode:</strong> Preferences are stored in your local session. Sign in to link across devices.</span>
+                <div className="flex gap-2 font-bold">
+                  <button onClick={() => nav("/signin")} className="text-[#0b3b60] hover:underline cursor-pointer">
                     Sign In
                   </button>
-                  <span className="text-slate-350">|</span>
-                  <button onClick={() => setShowGuestProfile(false)} className="text-[11px] font-bold text-slate-500 hover:underline whitespace-nowrap">
-                    Show Options
+                  <span className="text-slate-300">|</span>
+                  <button onClick={() => setShowGuestProfile(false)} className="text-slate-600 hover:underline cursor-pointer">
+                    Options
                   </button>
                 </div>
               </div>
             )}
 
-            <form onSubmit={handleSubmit(onSubmit)} className="card-soft p-6 sm:p-8 border border-slate-100 bg-white space-y-6 shadow-sm">
-              
-              {/* Completion Indicator Widget */}
-              <div className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 space-y-2">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="font-bold text-brand-ink">Profile Completion</span>
-                  <span className={`font-extrabold ${completionPercent === 100 ? "text-brand-green" : "text-brand-orange"}`}>
-                    {completionPercent}%
+            <form onSubmit={handleSubmit(onSubmit)} className="bg-white p-6 rounded-xl border border-slate-200 space-y-5 shadow-xs">
+              {/* Completion Bar */}
+              <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50 space-y-1.5">
+                <div className="flex justify-between items-center text-xs font-bold">
+                  <span className="text-slate-800">Profile Readiness</span>
+                  <span className={completionPercent === 100 ? "text-emerald-700" : "text-amber-700"}>
+                    {completionPercent}% Complete
                   </span>
                 </div>
                 <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-brand-orange to-brand-green transition-all duration-500" 
-                    style={{ width: `${completionPercent}%` }} 
+                  <div
+                    className="h-full bg-[#0b3b60] transition-all duration-300"
+                    style={{ width: `${completionPercent}%` }}
                   />
                 </div>
-                <p className="text-[10px] text-brand-muted">
-                  {completionPercent === 100 
-                    ? "✓ Your profile is fully configured for accurate eligibility diagnostics!" 
-                    : "Fill in all fields to maximize Saathi AI matching accuracy."}
-                </p>
               </div>
 
-              <h3 className="font-display text-lg font-bold text-brand-ink border-b pb-2">Demographic Questionnaire</h3>
+              <h3 className="font-display text-sm font-bold text-slate-900 border-b border-slate-150 pb-2 uppercase tracking-wide">
+                Demographic Information / व्यक्तिगत विवरण
+              </h3>
               
-              <div className="grid sm:grid-cols-2 gap-5">
+              <div className="grid sm:grid-cols-2 gap-4">
                 
                 {/* Full Name */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-brand-ink">Full Name</Label>
+                  <Label className="text-xs font-bold text-slate-800">Full Name (पूरा नाम)</Label>
                   <Input
                     {...register("name")}
                     placeholder="e.g. Ramesh Kumar"
-                    className="h-11 rounded-lg border bg-slate-50 focus:bg-white"
+                    className="h-10 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white text-xs"
                     data-testid="profile-name-input"
                   />
                   {errors.name && <p className="text-[10px] font-semibold text-rose-600">{errors.name.message}</p>}
@@ -353,12 +396,12 @@ export default function Profile() {
 
                 {/* Age */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-brand-ink">Age</Label>
+                  <Label className="text-xs font-bold text-slate-800">Age (उम्र)</Label>
                   <Input
                     type="number"
                     {...register("age")}
                     placeholder="e.g. 35"
-                    className="h-11 rounded-lg border bg-slate-50 focus:bg-white"
+                    className="h-10 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white text-xs"
                     data-testid="profile-age-input"
                   />
                   {errors.age && <p className="text-[10px] font-semibold text-rose-600">{errors.age.message}</p>}
@@ -366,17 +409,17 @@ export default function Profile() {
 
                 {/* Gender */}
                 <div className="space-y-1.5 sm:col-span-2">
-                  <Label className="text-xs font-bold text-brand-ink">Gender</Label>
-                  <div className="flex gap-3">
+                  <Label className="text-xs font-bold text-slate-800">Gender (लिंग)</Label>
+                  <div className="flex gap-2.5">
                     {["Female", "Male", "Other"].map((g) => (
                       <button
                         key={g}
                         type="button"
                         onClick={() => setValue("gender", g)}
-                        className={`flex-1 h-10 border rounded-lg text-xs font-semibold transition-all ${
+                        className={`flex-1 h-9 border rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                           activeGender === g 
-                            ? "bg-brand-blueLight border-brand-blue text-brand-blue" 
-                            : "bg-slate-50 hover:bg-slate-100 text-slate-700"
+                            ? "bg-blue-50 border-[#0b3b60] text-[#0b3b60] font-bold" 
+                            : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
                         }`}
                       >
                         {g}
@@ -388,10 +431,10 @@ export default function Profile() {
 
                 {/* State */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-brand-ink">State of Residence</Label>
+                  <Label className="text-xs font-bold text-slate-800">State (राज्य)</Label>
                   <select
                     {...register("state")}
-                    className="w-full h-11 px-3 border rounded-lg text-xs bg-slate-50 focus:bg-white outline-none focus:border-brand-blue transition-colors"
+                    className="w-full h-10 px-3 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white outline-none focus:border-[#0b3b60] transition-colors"
                   >
                     <option value="">Select State...</option>
                     {STATES.map(s => <option key={s} value={s}>{s}</option>)}
@@ -401,21 +444,21 @@ export default function Profile() {
 
                 {/* District */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-brand-ink">District</Label>
+                  <Label className="text-xs font-bold text-slate-800">District (जिला)</Label>
                   <Input
                     {...register("district")}
                     placeholder="e.g. Patna"
-                    className="h-11 rounded-lg border bg-slate-50 focus:bg-white"
+                    className="h-10 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white text-xs"
                   />
                   {errors.district && <p className="text-[10px] font-semibold text-rose-600">{errors.district.message}</p>}
                 </div>
 
                 {/* Occupation */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-brand-ink">Occupation</Label>
+                  <Label className="text-xs font-bold text-slate-800">Occupation (व्यवसाय)</Label>
                   <select
                     {...register("occupation")}
-                    className="w-full h-11 px-3 border rounded-lg text-xs bg-slate-50 focus:bg-white outline-none focus:border-brand-blue transition-colors"
+                    className="w-full h-10 px-3 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white outline-none focus:border-[#0b3b60] transition-colors"
                   >
                     <option value="">Select Occupation...</option>
                     {OCCUPATIONS.map(o => <option key={o} value={o}>{o}</option>)}
@@ -425,10 +468,10 @@ export default function Profile() {
 
                 {/* Income */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-brand-ink">Annual Household Income</Label>
+                  <Label className="text-xs font-bold text-slate-800">Annual Income (वार्षिक आय)</Label>
                   <select
                     {...register("income")}
-                    className="w-full h-11 px-3 border rounded-lg text-xs bg-slate-50 focus:bg-white outline-none focus:border-brand-blue transition-colors"
+                    className="w-full h-10 px-3 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white outline-none focus:border-[#0b3b60] transition-colors"
                   >
                     <option value="">Select Income Bracket...</option>
                     {INCOME_BRACKETS.map(i => <option key={i} value={i}>{i}</option>)}
@@ -438,10 +481,10 @@ export default function Profile() {
 
                 {/* Education */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-brand-ink">Education Level</Label>
+                  <Label className="text-xs font-bold text-slate-800">Education Level (शिक्षा)</Label>
                   <select
                     {...register("education")}
-                    className="w-full h-11 px-3 border rounded-lg text-xs bg-slate-50 focus:bg-white outline-none focus:border-brand-blue transition-colors"
+                    className="w-full h-10 px-3 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white outline-none focus:border-[#0b3b60] transition-colors"
                   >
                     <option value="">Select Education...</option>
                     {EDUCATION_LEVELS.map(e => <option key={e} value={e}>{e}</option>)}
@@ -451,10 +494,10 @@ export default function Profile() {
 
                 {/* Category */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-brand-ink">Community Category</Label>
+                  <Label className="text-xs font-bold text-slate-800">Community Category (जाति वर्ग)</Label>
                   <select
                     {...register("category")}
-                    className="w-full h-11 px-3 border rounded-lg text-xs bg-slate-50 focus:bg-white outline-none focus:border-brand-blue transition-colors"
+                    className="w-full h-10 px-3 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:bg-white outline-none focus:border-[#0b3b60] transition-colors"
                   >
                     <option value="">Select Category...</option>
                     {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -464,17 +507,17 @@ export default function Profile() {
 
                 {/* Disability Status */}
                 <div className="space-y-1.5 sm:col-span-2">
-                  <Label className="text-xs font-bold text-brand-ink font-medium">Do you have a registered disability certificate?</Label>
-                  <div className="flex gap-3">
+                  <Label className="text-xs font-bold text-slate-800">Registered Disability Certificate (दिव्यांग स्थिति)</Label>
+                  <div className="flex gap-2.5">
                     {["No", "Yes"].map((option) => (
                       <button
                         key={option}
                         type="button"
                         onClick={() => setValue("disabilityStatus", option)}
-                        className={`flex-1 h-10 border rounded-lg text-xs font-semibold transition-all ${
+                        className={`flex-1 h-9 border rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                           activeDisability === option 
-                            ? "bg-brand-blueLight border-brand-blue text-brand-blue" 
-                            : "bg-slate-50 hover:bg-slate-100 text-slate-750"
+                            ? "bg-blue-50 border-[#0b3b60] text-[#0b3b60] font-bold" 
+                            : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
                         }`}
                       >
                         {option}
@@ -487,49 +530,52 @@ export default function Profile() {
               </div>
 
               {/* Save Preferences Button */}
-              <div className="pt-4 border-t flex justify-end">
+              <div className="pt-3 border-t border-slate-150 flex justify-end">
                 <Button
                   type="submit"
                   disabled={saveMutation.isPending}
-                  className="h-11 px-8 bg-brand-blue hover:bg-blue-700 text-white font-semibold rounded-lg flex items-center gap-2"
+                  className="h-10 px-6 bg-[#0b3b60] hover:bg-[#07253d] text-white font-semibold rounded-lg text-xs flex items-center gap-2 cursor-pointer shadow-xs"
                   data-testid="save-preferences-btn"
                 >
                   {saveMutation.isPending ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" /> Saving...
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving Details...
                     </>
                   ) : (
-                    "Save Preferences"
+                    "Save Official Profile"
                   )}
                 </Button>
               </div>
             </form>
 
-            {/* My Documents Checklist Card */}
-            <div className="card-soft p-6 sm:p-8 border border-slate-100 bg-white space-y-6 shadow-sm rounded-2xl">
-              <div>
-                <h3 className="font-display text-lg font-bold text-brand-ink">My Documents</h3>
-                <p className="text-xs text-brand-muted mt-1">Select the documents you currently possess. These will be matched against scheme requirements.</p>
+            {/* My Documents Checklist */}
+            <div className="bg-white p-6 rounded-xl border border-slate-200 space-y-4 shadow-xs">
+              <div className="border-b border-slate-150 pb-2">
+                <h3 className="font-display text-sm font-bold text-slate-900 uppercase tracking-wide">
+                  Verified Documents Repository / नागरिक दस्तावेज
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">Select the verified certificates currently in your DigiLocker or physical possession.</p>
               </div>
 
-              <div className="grid sm:grid-cols-2 gap-4">
+              <div className="grid sm:grid-cols-2 gap-3">
                 {ALL_DOCUMENTS.map((doc) => {
                   const hasDoc = checkedDocs.includes(doc);
                   return (
                     <label
                       key={doc}
-                      className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                        hasDoc ? "border-brand-blue bg-brand-blueLight/30" : "border-slate-100 hover:border-slate-200"
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                        hasDoc ? "border-[#0b3b60] bg-blue-50/50 text-[#0b3b60]" : "border-slate-200 hover:bg-slate-50 text-slate-800"
                       }`}
                     >
                       <input
                         type="checkbox"
                         checked={hasDoc}
                         onChange={() => handleDocumentToggle(doc)}
-                        className="w-4 h-4 rounded text-brand-blue border-slate-350 focus:ring-brand-blue cursor-pointer"
+                        className="w-4 h-4 rounded text-[#0b3b60] border-slate-300 focus:ring-[#0b3b60] cursor-pointer"
                         data-testid={`doc-${doc.toLowerCase().replace(/ /g, "-")}`}
                       />
-                      <span className="text-xs font-semibold text-brand-ink">{doc}</span>
+                      <span className="text-xs font-semibold flex-1">{doc}</span>
+                      {hasDoc && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />}
                     </label>
                   );
                 })}

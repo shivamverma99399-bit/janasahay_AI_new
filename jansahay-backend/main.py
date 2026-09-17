@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 # Load environment variables at the very beginning
 load_dotenv(override=True)
 
+from typing import Optional, Dict, Any, List
 import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,11 +33,17 @@ print("Allowed origins:", allowed_origins)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Mount AI Chat router
+app.include_router(chat_router, prefix="/api/ai", tags=["AI Chat"])
+app.include_router(chat_router, prefix="/ai", tags=["AI Chat"])
+app.include_router(chat_router, prefix="/api", tags=["AI Chat"])
+app.include_router(chat_router, tags=["AI Chat"])
 
 _supabase: Optional[Client] = None
 
@@ -47,8 +54,6 @@ def get_supabase() -> Client:
         key: str = os.environ.get("SUPABASE_KEY", "")
         _supabase = create_client(url, key)
     return _supabase
-
-from typing import Optional, Dict, Any, List
 
 class UserProfile(BaseModel):
     id: Optional[str] = None
