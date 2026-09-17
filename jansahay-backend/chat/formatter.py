@@ -31,9 +31,18 @@ def clean_and_parse_json(raw_text: str) -> Dict[str, Any]:
     try:
         data = json.loads(cleaned)
         
+        raw_answer = str(data.get("answer", ""))
+        clean_answer = (
+            raw_answer
+            .replace("\\r\\n", "\n")
+            .replace("\\n", "\n")
+            .replace("\\r", "\n")
+            .replace("\\t", "\t")
+        )
+
         # Enforce all required fields from the structured format
         formatted_response = {
-            "answer": str(data.get("answer", "")),
+            "answer": clean_answer,
             "matchedSchemes": list(data.get("matchedSchemes", [])),
             "eligibility": list(data.get("eligibility", [])),
             "recommendedActions": list(data.get("recommendedActions", [])),
@@ -83,8 +92,15 @@ def create_fallback_response(raw_answer: str) -> Dict[str, Any]:
     """
     Creates a fallback structured response containing the raw response in the answer field.
     """
+    clean_ans = (
+        str(raw_answer)
+        .replace("\\r\\n", "\n")
+        .replace("\\n", "\n")
+        .replace("\\r", "\n")
+        .replace("\\t", "\t")
+    )
     return {
-      "answer": raw_answer,
+      "answer": clean_ans,
       "matchedSchemes": [],
       "eligibility": [],
       "recommendedActions": [],

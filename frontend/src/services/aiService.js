@@ -44,13 +44,21 @@ export const aiService = {
       user_documents: userDocuments
     });
 
+    const rawAnswer = String(response.data?.answer || "");
+    const cleanAnswer = rawAnswer
+      .replace(/\\r\\n/g, "\n")
+      .replace(/\\n/g, "\n")
+      .replace(/\\r/g, "\n")
+      .replace(/\r\n/g, "\n")
+      .replace(/<br\s*\/?>/gi, "\n");
+
     return {
-      answer: response.data.answer,
-      matchedSchemes: response.data.matchedSchemes || [],
-      eligibility: response.data.eligibility || [],
-      recommendedActions: response.data.recommendedActions || [],
-      confidence: response.data.confidence || 1.0,
-      sources: response.data.sources || []
+      answer: cleanAnswer,
+      matchedSchemes: response.data?.matchedSchemes || [],
+      eligibility: response.data?.eligibility || [],
+      recommendedActions: response.data?.recommendedActions || [],
+      confidence: response.data?.confidence || 1.0,
+      sources: response.data?.sources || []
     };
   },
 

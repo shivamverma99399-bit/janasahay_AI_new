@@ -36,11 +36,19 @@ const SUGGESTIONS = [
 function Markdown({ text }) {
   if (!text) return null;
 
-  // 1. Split text into code blocks and normal text blocks
-  const parts = text.split("```");
+  // Normalize literal escaped \n, \r\n, and HTML break tags
+  const clean = String(text)
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\\r/g, "\n")
+    .replace(/\r\n/g, "\n")
+    .replace(/<br\s*\/?>/gi, "\n");
+
+  // Split text into code blocks and normal text blocks
+  const parts = clean.split("```");
   
   return (
-    <div className="space-y-3 text-sm leading-relaxed text-slate-700 break-words overflow-hidden">
+    <div className="space-y-2.5 text-sm leading-relaxed text-slate-700 break-words overflow-hidden">
       {parts.map((part, index) => {
         const isCodeBlock = index % 2 === 1;
         
@@ -94,136 +102,202 @@ function CodeBlock({ code, language }) {
   );
 }
 
-// Sub-component: Parsed inline text blocks with headings, lists, tables, bold styling
+// Sub-component: Parsed inline text blocks with scheme headers, attribute badges, headings, and lists
 function FormattedTextBlock({ text }) {
   if (!text) return null;
   
-  // Normalize raw <br> tags produced by LLMs to clean newlines
-  const normalizedText = text.replace(/<br\s*\/?>/gi, "\n");
+  // Normalize any leftover escaped newlines
+  const normalizedText = String(text)
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\\r/g, "\n")
+    .replace(/\r\n/g, "\n")
+    .replace(/<br\s*\/?>/gi, "\n");
+    
   const lines = normalizedText.split("\n");
-  const elements = [];
-  let currentList = [];
-  let listType = null; // 'ul' or 'ol'
-  
-  const flushList = (keyIndex) => {
-    if (currentList.length > 0) {
-      if (listType === "ul") {
-        elements.push(
-          <ul key={`ul-${keyIndex}`} className="list-disc pl-6 space-y-1 my-2">
-            {currentList.map((item, idx) => (
-              <li key={idx} className="text-slate-700 break-words">{renderInline(item)}</li>
-            ))}
-          </ul>
-        );
-      } else {
-        elements.push(
-          <ol key={`ol-${keyIndex}`} className="list-decimal pl-6 space-y-1 my-2">
-            {currentList.map((item, idx) => (
-              <li key={idx} className="text-slate-700 break-words">{renderInline(item)}</li>
-            ))}
-          </ol>
-        );
-      }
-      currentList = [];
-      listType = null;
-    }
-  };
 
+  // Inline token renderer for **bold**, `code`, and [link](url)
   const renderInline = (str) => {
     if (!str) return "";
+    const tokenRegex = /(\*\*.*?\*\*|`.*?`|\[.*?\]\(.*?\))/g;
+    const parts = String(str).split(tokenRegex);
     
-    // Parse bold "**text**" -> <strong>
-    // Parse inline code "`code`" -> <code>
-    const boldRegex = /\*\*(.*?)\*\*/g;
-    const codeRegex = /`(.*?)`/g;
-    
-    let parts = [str];
-    
-    // Process Bold
-    let boldMatches;
-    let boldParts = [];
-    parts.forEach(part => {
-      if (typeof part !== "string") {
-        boldParts.push(part);
-        return;
+    return parts.map((part, pIdx) => {
+      if (!part) return null;
+      if (part.startsWith("**") && part.endsWith("**") && part.length >= 4) {
+        return (
+          <strong key={pIdx} className="font-semibold text-slate-900">
+            {part.slice(2, -2)}
+          </strong>
+        );
       }
-      let lastIndex = 0;
-      let match;
-      boldRegex.lastIndex = 0;
-      while ((match = boldRegex.exec(part)) !== null) {
-        if (match.index > lastIndex) {
-          boldParts.push(part.substring(lastIndex, match.index));
-        }
-        boldParts.push(<strong key={match.index} className="font-bold text-brand-ink">{match[1]}</strong>);
-        lastIndex = boldRegex.lastIndex;
+      if (part.startsWith("`") && part.endsWith("`") && part.length >= 2) {
+        return (
+          <code key={pIdx} className="bg-slate-100 text-pink-600 px-1 py-0.5 rounded font-mono text-xs">
+            {part.slice(1, -1)}
+          </code>
+        );
       }
-      if (lastIndex < part.length) {
-        boldParts.push(part.substring(lastIndex));
+      const linkMatch = part.match(/^\[(.*?)\]\((.*?)\)$/);
+      if (linkMatch) {
+        return (
+          <a
+            key={pIdx}
+            href={linkMatch[2]}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-brand-blue underline hover:text-[#0b3b60] font-medium"
+          >
+            {linkMatch[1]}
+          </a>
+        );
       }
+      return part;
     });
-    parts = boldParts;
-    
-    // Process Inline Code
-    let codeParts = [];
-    parts.forEach((part, pIdx) => {
-      if (typeof part !== "string") {
-        codeParts.push(part);
-        return;
-      }
-      let lastIndex = 0;
-      let match;
-      codeRegex.lastIndex = 0;
-      while ((match = codeRegex.exec(part)) !== null) {
-        if (match.index > lastIndex) {
-          codeParts.push(part.substring(lastIndex, match.index));
-        }
-        codeParts.push(<code key={`${pIdx}-${match.index}`} className="bg-slate-100 text-pink-600 px-1 py-0.5 rounded font-mono text-xs">{match[1]}</code>);
-        lastIndex = codeRegex.lastIndex;
-      }
-      if (lastIndex < part.length) {
-        codeParts.push(part.substring(lastIndex));
-      }
-    });
-    
-    return codeParts;
   };
+
+  // Helper to check if next line looks like a scheme attribute
+  const isNextLineAttribute = (startIdx) => {
+    for (let j = startIdx + 1; j < lines.length && j <= startIdx + 3; j++) {
+      const nextTrimmed = lines[j].trim();
+      if (!nextTrimmed) continue;
+      return /^\s*[-*•]?\s*(?:\*\*)?(Department|Ministry|Benefit|Benefits|Key Benefit|Why Eligible|Eligibility|Documents|How to Apply)/i.test(nextTrimmed);
+    }
+    return false;
+  };
+
+  const elements = [];
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
-    
-    // 1. Headers
-    if (trimmed.startsWith("### ")) {
-      flushList(i);
-      elements.push(<h4 key={i} className="text-sm font-bold text-brand-ink mt-3 mb-1">{renderInline(trimmed.substring(4))}</h4>);
-    } else if (trimmed.startsWith("## ")) {
-      flushList(i);
-      elements.push(<h3 key={i} className="text-base font-bold text-brand-ink mt-4 mb-2">{renderInline(trimmed.substring(3))}</h3>);
-    } else if (trimmed.startsWith("# ")) {
-      flushList(i);
-      elements.push(<h2 key={i} className="text-lg font-bold text-brand-ink mt-4 mb-2">{renderInline(trimmed.substring(2))}</h2>);
-    }
-    // 2. Lists
-    else if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
-      if (listType && listType !== "ul") flushList(i);
-      listType = "ul";
-      currentList.push(trimmed.substring(2));
-    } else if (/^\d+\.\s+/.test(trimmed)) {
-      if (listType && listType !== "ol") flushList(i);
-      listType = "ol";
-      const content = trimmed.replace(/^\d+\.\s+/, "");
-      currentList.push(content);
-    }
-    // 3. Normal paragraph
-    else {
-      flushList(i);
-      if (trimmed) {
-        elements.push(<p key={i} className="my-1.5 break-words leading-relaxed">{renderInline(trimmed)}</p>);
+    if (!trimmed) continue;
+
+    // 1. Attribute Line Detection (e.g. " - Department: Ministry...", "Benefit: Low interest loans...")
+    const attrMatch = trimmed.match(
+      /^\s*[-*•]?\s*(?:\*\*)?(Department|Ministry|Benefit|Benefits|Key Benefit|Key Benefits|Financial Assistance|Why Eligible\??|Eligibility|Why You Qualify|Documents Required|Documents|Required Documents|How to Apply|Process|Application Process|Next Steps|Deadline|Age Limit|Income Limit)(?:\*\*)?[:：]\s*(.*)$/i
+    );
+
+    if (attrMatch) {
+      const rawKey = attrMatch[1].trim();
+      const val = attrMatch[2].trim();
+      const keyLower = rawKey.toLowerCase();
+
+      let badgeClass = "bg-slate-100 text-slate-700 border-slate-200";
+      let icon = "📌";
+      let displayLabel = rawKey;
+
+      if (keyLower.includes("department") || keyLower.includes("ministry")) {
+        badgeClass = "bg-sky-50 text-[#0b3b60] border-sky-200";
+        icon = "🏛️";
+        displayLabel = "Department";
+      } else if (keyLower.includes("benefit") || keyLower.includes("assistance")) {
+        badgeClass = "bg-emerald-50 text-emerald-800 border-emerald-200";
+        icon = "💰";
+        displayLabel = "Benefit";
+      } else if (keyLower.includes("eligib") || keyLower.includes("qualify")) {
+        badgeClass = "bg-amber-50 text-amber-800 border-amber-200";
+        icon = "✅";
+        displayLabel = "Eligibility";
+      } else if (keyLower.includes("document")) {
+        badgeClass = "bg-indigo-50 text-indigo-800 border-indigo-200";
+        icon = "📄";
+        displayLabel = "Documents";
+      } else if (keyLower.includes("apply") || keyLower.includes("process") || keyLower.includes("next")) {
+        badgeClass = "bg-blue-50 text-blue-800 border-blue-200";
+        icon = "👉";
+        displayLabel = "Next Steps";
       }
+
+      elements.push(
+        <div key={`attr-${i}`} className="flex flex-col sm:flex-row sm:items-baseline gap-1.5 sm:gap-2.5 my-1.5 pl-3 border-l-2 border-slate-200">
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold tracking-wide flex-shrink-0 select-none border ${badgeClass}`}>
+            <span>{icon}</span> {displayLabel}
+          </span>
+          <span className="text-slate-700 text-xs sm:text-sm leading-relaxed">{renderInline(val)}</span>
+        </div>
+      );
+      continue;
     }
+
+    // 2. Scheme Title / Header detection (e.g. "- Kisan Credit Card (KCC)", "### 1. Scheme", etc.)
+    const isListMarker = /^(?:[-*•]|\d+\.)\s+/.test(trimmed);
+    const hasNextAttr = isNextLineAttribute(i);
+    const isH3orH4 = trimmed.startsWith("### ") || trimmed.startsWith("#### ");
+
+    if (isH3orH4 || (isListMarker && hasNextAttr)) {
+      const cleanTitle = trimmed
+        .replace(/^(?:#{1,4}|[-*•]|\d+\.)\s+/, "")
+        .replace(/^\*\*(.*?)\*\*$/, "$1")
+        .trim();
+
+      elements.push(
+        <div key={`scheme-${i}`} className="mt-4 pt-3 border-t border-slate-200/80 first:border-t-0 first:mt-1 first:pt-0">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="w-5 h-5 rounded-md bg-[#0b3b60] text-white flex items-center justify-center text-[11px] font-bold flex-shrink-0 shadow-xs">
+              🏛️
+            </span>
+            <h4 className="font-bold text-sm sm:text-base text-[#0b3b60] tracking-tight">
+              {renderInline(cleanTitle)}
+            </h4>
+          </div>
+        </div>
+      );
+      continue;
+    }
+
+    // 3. Markdown Top-Level Headers
+    if (trimmed.startsWith("## ")) {
+      elements.push(
+        <h3 key={`h2-${i}`} className="text-base font-bold text-[#0b3b60] mt-4 mb-2 pb-1 border-b border-slate-200">
+          {renderInline(trimmed.substring(3))}
+        </h3>
+      );
+      continue;
+    }
+    if (trimmed.startsWith("# ")) {
+      elements.push(
+        <h2 key={`h1-${i}`} className="text-lg font-bold text-[#0b3b60] mt-4 mb-2 pb-1 border-b border-slate-200">
+          {renderInline(trimmed.substring(2))}
+        </h2>
+      );
+      continue;
+    }
+
+    // 4. Numbered list item
+    const numMatch = trimmed.match(/^(\d+)\.\s+(.*)$/);
+    if (numMatch) {
+      elements.push(
+        <div key={`ol-${i}`} className="flex items-start gap-2.5 my-1.5 pl-1">
+          <span className="w-5 h-5 rounded-full bg-blue-100 text-[#0b3b60] font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
+            {numMatch[1]}
+          </span>
+          <div className="text-slate-700 text-xs sm:text-sm leading-relaxed">{renderInline(numMatch[2])}</div>
+        </div>
+      );
+      continue;
+    }
+
+    // 5. Bullet list item
+    if (trimmed.startsWith("- ") || trimmed.startsWith("* ") || trimmed.startsWith("• ")) {
+      const bulletContent = trimmed.replace(/^[-*•]\s+/, "");
+      elements.push(
+        <div key={`ul-${i}`} className="flex items-start gap-2.5 my-1 pl-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#0b3b60] mt-2 flex-shrink-0" />
+          <div className="text-slate-700 text-xs sm:text-sm leading-relaxed">{renderInline(bulletContent)}</div>
+        </div>
+      );
+      continue;
+    }
+
+    // 6. Normal paragraph text
+    elements.push(
+      <p key={`p-${i}`} className="my-2 text-xs sm:text-sm text-slate-700 leading-relaxed break-words font-normal">
+        {renderInline(trimmed)}
+      </p>
+    );
   }
-  flushList(lines.length);
-  
+
   return <div className="space-y-1">{elements}</div>;
 }
 
@@ -316,8 +390,14 @@ export default function AIAssistant() {
   // Copy individual bot message response text
   const handleCopyMessage = async (text) => {
     try {
-      await navigator.clipboard.writeText(text);
-      toast.success("Message copied to clipboard!");
+      const clean = String(text || "")
+        .replace(/\\r\\n/g, "\n")
+        .replace(/\\n/g, "\n")
+        .replace(/\\r/g, "\n")
+        .replace(/\r\n/g, "\n")
+        .replace(/<br\s*\/?>/gi, "\n");
+      await navigator.clipboard.writeText(clean);
+      toast.success("Answer copied to clipboard!");
     } catch (e) {
       toast.error("Copy failed.");
     }
