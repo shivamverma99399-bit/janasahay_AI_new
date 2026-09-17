@@ -86,6 +86,7 @@ def get_schemes():
 
 
 
+@app.post("/users")
 @app.post("/api/users")
 def create_user(user: UserProfile):
     try:
@@ -104,8 +105,7 @@ def create_user(user: UserProfile):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-app.include_router(chat_router, prefix="/api/ai")
-
+@app.post("/match-schemes")
 @app.post("/api/match-schemes")
 def match_schemes(request: MatchSchemesRequest):
     """
@@ -140,6 +140,7 @@ def match_schemes(request: MatchSchemesRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/v1/government-updates")
 @app.get("/api/v1/government-updates")
 def get_v1_government_updates():
     """
